@@ -1,0 +1,4 @@
+(executable
+ (public_name borrow_lambda)
+ (name main)
+ (libraries borrow_lambda))
