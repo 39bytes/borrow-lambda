@@ -3,7 +3,6 @@ $$
 \text{Terms } t ::= &x \ |\  \lambda x.t \ |\  t_{1}\ t_{2} \ |\ \&x \ |\ \&\text{mut }x \ |\ ^{*}x \\
 &|\ \text{if $t_{1}$ then $t_{2}$ else $t_{3}$} \\
 &|\ \text{let } x = t_{1} \text{ in } t_{2} \\
-&|\ \text{let mut }x = t_{1} \text{ in } t_{2} \\
 &|\ x := t \\
 &|\ ^{*}x := t \\
 &|\ \text{true} \\
@@ -50,6 +49,7 @@ $$
 $$
 \frac{\Gamma \mid \Delta \vdash t_{1} : T_{1} \to T_{2} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2} : T_{1} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash t_{1} \ t_{2} : T_{2} \mid \Delta_{2}}
 $$
+
 ### Lifetimes
 $$
 \begin{align*}
@@ -69,9 +69,11 @@ $$
 $$
 **Binding + evaluates to reference (no escaping)**
 $$
-\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \alpha = \text{len}(\Lambda) \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : \alpha  \vdash t_{2} : \&\beta\ T_{2} \mid \Delta_{2} \quad \beta < \alpha}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&\beta\ T_{2} \mid \Delta_{2}}
+\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : |\Lambda|  \vdash t_{2} : \&\beta\ T_{2} \mid \Delta_{2} \quad \beta < \alpha}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&\beta\ T_{2} \mid \Delta_{2}}
 $$
 **Binding + evaluating to some other value**
 $$
-\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \alpha = \text{len}(\Lambda) \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : \alpha  \vdash t_{2} : T_{2} \mid \Delta_{2}}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : T_{2} \mid \Delta_{2}}
+\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : |\Lambda|  \vdash t_{2} : T_{2} \mid \Delta_{2}}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : T_{2} \mid \Delta_{2}}
 $$
+### References
+https://www.cs.cmu.edu/~janh/courses/ra19/assets/pdf/lect04.pdf
