@@ -69,7 +69,7 @@ $$
 $$
 **Binding + evaluates to reference (no escaping)**
 $$
-\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : |\Lambda|  \vdash t_{2} : \&\beta\ T_{2} \mid \Delta_{2} \quad \beta < \alpha}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&\beta\ T_{2} \mid \Delta_{2}}
+\frac{\Gamma \mid \Delta \mid \Lambda \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} \mid \Delta_{1} \mid \Lambda, x : |\Lambda|  \vdash t_{2} : \&\beta\ T_{2} \mid \Delta_{2} \quad \beta < |\Lambda|}{\Gamma\mid\Delta \mid \Lambda \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&\beta\ T_{2} \mid \Delta_{2}}
 $$
 **Binding + evaluating to some other value**
 $$
