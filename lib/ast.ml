@@ -30,14 +30,3 @@ type tp =
   | Unit
   | Arrow of tp * tp
   | Ref of lifetime * tp * ref_mod
-
-let copy : tp -> bool = function
-  | Nat | Bool | Unit | Ref (_, _, Shr) -> true
-  | _ -> false
-
-module StringSet = Set.Make (String)
-
-type gamma = (string * tp) list
-type delta = StringSet.t
-type fn_ctx = StringSet.t
-type borrow_ctx = (string * ref_mod) list
