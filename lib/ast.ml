@@ -6,8 +6,8 @@ type tm =
   | BorrowMut of tm
   | IfElse of tm * tm * tm
   | LetIn of string * tm * tm
-  | Assign of tm * tm
-  | DerefAssign of tm * tm
+  | Assign of string * tm
+  | DerefAssign of string * tm
   | Zero
   | Succ of tm
   | Pred of tm
