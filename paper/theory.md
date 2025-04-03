@@ -29,7 +29,7 @@ $$
 \end{align*}
 $$
 $$
-\text{Copy} = \{\text{Nat} , \text{Bool}, \text{Unit}\}
+\text{Copy} = \{\text{Nat} , \text{Bool}, \text{Unit}, \&^{\kappa}_{\text{shr}}\ T\}
 $$
 ### Affine rules
 $$
@@ -40,7 +40,7 @@ $$
 $$
 $$
 \begin{align*}
-&\Delta ::= \cdot_{\Delta} | \Delta, t \\
+&\Delta ::= \cdot_{\Delta} | \Delta \\
 \end{align*}
 $$
 **Trivially copyable**
@@ -49,7 +49,7 @@ $$
 $$
 **Move semantics**
 $$
-\frac{\Gamma(x) = T \quad x \not\in \Delta \quad T \not\in \text{Copy}}{\Gamma \mid \Delta \vdash x : T \mid \Delta, x}
+\frac{\Gamma(x) = T \quad x \not\in \Delta \quad T \not\in \text{Copy} \quad x_{\mu} \not\in B}{\Gamma \mid B \mid \Delta \vdash x : T \mid \Delta, x}
 $$
 **is-zero**
 $$
@@ -72,20 +72,6 @@ $$
 $$
 \frac{\Gamma \mid \Delta \vdash t_{1} : T_{1} \to T_{2} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2} : T_{1} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash t_{1} \ t_{2} : T_{2} \mid \Delta_{2}}
 $$
-**NatVec**
-$$
-\begin{align*}
-&\frac{\Gamma \mid \Delta \vdash t_{1} : \text{Nat} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2} : \text{Nat} \mid \Delta_{2} \quad \dots \quad \Gamma \mid \Delta_{k-1} \vdash t_{k} : \text{Nat} \mid \Delta_{k}}{\Gamma  \mid \Delta \vdash \text{natvec}(t_{1}, t_{2},\dots t_{k}) : \text{NatVec} \mid \Delta_{k}} \\
-\\
-&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\mu}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{get}(t_{1}, t_{2}) : \&^{\alpha}_{\text{shr}}\ \text{Nat} \mid \Delta_{2}} \\
-\\
-&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{getmut}(t_{1}, t_{2}) : \&^{\alpha}_{\text{mut}}\ \text{Nat} \mid \Delta_{2}} \\
-\\
-&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{push}(t_{1}, t_{2}) : \text{Unit} \mid \Delta_{2}} \\
-\\
-&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{pop}(t_{1}, t_{2}) : \text{Nat} \mid \Delta_{2}} \\
-\end{align*}
-$$
 
 ### Lifetimes
 **Definition of function context**
@@ -95,6 +81,11 @@ $$
 &F::= \cdot_{F} | F, x\\
 \end{align*}
 $$
+**Definition of live borrows context**
+$$
+B ::= \cdot _{B} \mid B, x_{\mu}
+$$
+
 **Subtyping**
 $$
 \frac{\Gamma \vdash t : T_{1} \quad T_{1} <: T_{2}}{\Gamma \vdash t: T_{2}}
@@ -110,18 +101,20 @@ $$
 **Borrowing**
 $$
 \begin{align*}
-\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F}{\Gamma \mid F \mid \Delta \vdash \&x : \&^{\alpha}_{\text{shr}}\ T \mid \Delta} \\
+&\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F \quad x_{\text{mut}} \not\in B}{\Gamma \mid F \mid B \mid \Delta \vdash \&x : \&^{\alpha}_{\text{shr}}\ T \mid \Delta \mid B, x_{\text{shr}}} \\
 \\
-\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F}{\Gamma \mid F \mid \Delta \vdash \&\text{mut }x : \&^{\alpha}_{\text{mut}}\ T \mid \Delta} \\
+&\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F \quad x_{\mu} \not\in B}{\Gamma \mid F \mid B \mid \Delta \vdash \&\text{mut }x : \&^{\alpha}_{\text{mut}}\ T \mid \Delta \mid B, x_{\text{mut}}} \\
+\\
+&\frac{\Gamma \mid F \mid \Delta \vdash x : \&^{\alpha}_{\mu}\ T \mid \Delta' \quad T \in \text{Copy}}{\Gamma \mid F \mid  \Delta \vdash\ ^{*}x : T  \mid \Delta'}
 \end{align*}
 $$
 **Binding + evaluates to reference (no escaping)**
 $$
-\frac{\Gamma \mid F \mid \Delta \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F,x \mid \Delta_{1} \vdash t_{2} : \&^{\beta}_{\mu} T_{2} \mid \Delta_{2} \quad \beta < |\Gamma|}{\Gamma \mid F \mid \Delta \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&^{\beta}_{\mu}\ T_{2} \mid \Delta_{2}}
+\frac{\Gamma \mid F \mid \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F,x \mid \Delta_{1} \mid B_{1} \vdash t_{2} : \&^{\beta}_{\mu} T_{2} \mid \Delta_{2} \mid B_{2} \quad \beta < |\Gamma|}{\Gamma \mid F \mid \Delta \mid B \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&^{\beta}_{\mu}\ T_{2} \mid \Delta_{2} \mid B}
 $$
 **Binding + evaluating to some other value**
 $$
-\frac{\Gamma \mid F \mid  \Delta \vdash t_{1} : T_{1} \mid \Delta_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F, x\mid \Delta_{1}  \vdash t_{2} : T_{*} \mid \Delta_{2}}{\Gamma \mid F \mid \Delta \vdash \text{let $x = t_{1}$ in $t_{2}$} : T_{*} \mid \Delta_{2}}
+\frac{\Gamma \mid F \mid  \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F, x\mid \Delta_{1}  \vdash t_{2} : T_{*} \mid \Delta_{2} \mid B_{2}}{\Gamma \mid F \mid \Delta \vdash \text{let $x = t_{1}$ in $t_{2}$} : T_{*} \mid \Delta_{2} \mid B}
 $$
 **Lambda abstraction**
 $$
@@ -130,6 +123,20 @@ $$
 $$
 \frac{\Gamma, x: T_{1} ; |\Gamma| \mid \cdot_{F}, x \mid \Delta  \vdash t : T_{*} \mid \Delta'}{\Gamma \mid F \mid \Delta \vdash (\lambda x: T_{1}. t) : T_{1} \to T_{*} \mid \Delta'}
 $$
+**NatVec**
+$$
+\begin{align*}
+&\frac{\Gamma \mid \Delta \vdash t_{1} : \text{Nat} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2} : \text{Nat} \mid \Delta_{2} \quad \dots \quad \Gamma \mid \Delta_{k-1} \vdash t_{k} : \text{Nat} \mid \Delta_{k}}{\Gamma  \mid \Delta \vdash \text{natvec}(t_{1}, t_{2},\dots t_{k}) : \text{NatVec} \mid \Delta_{k}} \\
+\\
+&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\mu}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{get}(t_{1}, t_{2}) : \&^{\alpha}_{\text{shr}}\ \text{Nat} \mid \Delta_{2}} \\
+\\
+&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{getmut}(t_{1}, t_{2}) : \&^{\alpha}_{\text{mut}}\ \text{Nat} \mid \Delta_{2}} \\
+\\
+&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{push}(t_{1}, t_{2}) : \text{Unit} \mid \Delta_{2}} \\
+\\
+&\frac{\Gamma \mid \Delta \vdash t_{1} : \&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \quad \Gamma \mid \Delta_{1} \vdash t_{2}:\text{Nat} \mid \Delta_{2}}{\Gamma \mid \Delta \vdash \text{pop}(t_{1}, t_{2}) : \text{Nat} \mid \Delta_{2}} \\
+\end{align*}
+$$
 ### References
 https://www.cs.cmu.edu/~janh/courses/ra19/assets/pdf/lect04.pdf
 https://people.mpi-sws.org/~dreyer/papers/rustbelt/paper.pdf
@@ -137,9 +144,6 @@ https://people.mpi-sws.org/~dreyer/papers/rustbelt/paper.pdf
 ```rust
 fn foo() {
 	let a = 1;
-	let bar = || {
-		let b = a;	
-		&b;
-	}
+	let c = a; ?
 }
 ```
