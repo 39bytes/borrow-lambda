@@ -1,4 +1,4 @@
-type tm =
+(* type tm =
   | Var of string
   | Lam of string * tm
   | App of tm * tm
@@ -19,7 +19,23 @@ type tm =
   | NatVecGet of tm * tm
   | NatVecGetMut of tm * tm
   | NatVecPush of tm * tm
-  | NatVecPop of tm
+  | NatVecPop of tm *)
+
+type tm_syn =
+  | Var of string
+  | App of tm_syn * tm_chk
+  | Pred of tm_syn
+  | IsZero of tm_syn
+and tm_chk =
+  | CVar of tm_syn
+  | Lam of string * tm_chk
+  | IfElse of tm_syn * tm_chk * tm_chk
+  | LetIn of string * tm_chk * tm_syn
+  | Zero
+  | Succ of tm_chk
+  | True
+  | False
+  | Unit
 
 type lifetime = Scope of int
 type ref_mod = Mut | Shr
