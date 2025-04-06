@@ -24,18 +24,28 @@
 type tm_syn =
   | Var of string
   | App of tm_syn * tm_chk
+  | Borrow of tm_syn
+  | BorrowMut of tm_syn
   | Pred of tm_syn
   | IsZero of tm_syn
+  | NatVecGet of tm_syn * tm_chk
+  | NatVecGetMut of tm_syn * tm_chk
+  | NatVecPush of tm_syn * tm_chk
+  | NatVecPop of tm_syn
+
 and tm_chk =
-  | CVar of tm_syn
+  | Syn of tm_syn
   | Lam of string * tm_chk
   | IfElse of tm_syn * tm_chk * tm_chk
   | LetIn of string * tm_chk * tm_syn
+  | Assign of string * tm_chk
+  | DerefAssign of string * tm_chk
   | Zero
   | Succ of tm_chk
   | True
   | False
   | Unit
+  | NatVecMake of tm_chk list
 
 type lifetime = Scope of int
 type ref_mod = Mut | Shr
