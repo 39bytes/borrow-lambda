@@ -1,6 +1,6 @@
-type lifetime = LifetimeVar of string | Scope of int
+type lifetime = Any | Scope of int | LifetimeVar of string
 type ref_mod = Mut | Shr
-type var_id = string * int
+type var_id = int
 
 type tp =
   | Nat
@@ -38,16 +38,16 @@ type named_tm =
 type 'a tm = 'a tm' * 'a
 
 and 'a tm' =
-  | Var of var_id
-  | Lam of var_id * 'a tm
+  | Var of (string * var_id)
+  | Lam of (string * var_id) * 'a tm
   | App of 'a tm * 'a tm
   | Borrow of 'a tm
   | BorrowMut of 'a tm
   | Deref of 'a tm
   | IfElse of 'a tm * 'a tm * 'a tm
-  | LetIn of var_id * 'a tm * 'a tm
-  | Assign of var_id * 'a tm
-  | DerefAssign of var_id * 'a tm
+  | LetIn of (string * var_id) * 'a tm * 'a tm
+  | Assign of (string * var_id) * 'a tm
+  | DerefAssign of (string * var_id) * 'a tm
   | Zero
   | Succ of 'a tm
   | Pred of 'a tm
@@ -62,8 +62,12 @@ and 'a tm' =
   | NatVecPop of 'a tm
   | Annotated of 'a tm * tp
 
+let tag (tm : 'a tm) = snd tm
+
 let string_of_lifetime lft =
-  "'" ^ match lft with LifetimeVar v -> v | Scope n -> string_of_int n
+  "'"
+  ^
+  match lft with LifetimeVar v -> v | Scope n -> string_of_int n | Any -> "?"
 
 let rec string_of_tp = function
   | Nat -> "Nat"
