@@ -29,37 +29,37 @@ let mk_let x t1 t2 = LetIn (x, t1, t2)
 let mk_assign x t = Assign (x, t)
 let mk_deref_assign x t = DerefAssign (x, t)
 
-let term : tm t =
-  fix (fun term ->
-      let var = ident in
-      let lambda =
-        mk_lam
-        <$> (string "\\" <|> string "λ") *> ident
-        <* char '.' <* space <*> term
-      in
-      let app = mk_app <$> term <* space <*> term in
-      let borrow = mk_borrow <$> char '&' *> term in
-      let borrow_mut = mk_borrow_mut <$> string "&mut " *> term in
-      let if_then_else =
-        mk_if
-        <$> syntax "if" *> term
-        <* space
-        <*> syntax "then" *> term
-        <* space
-        <*> syntax "else" *> term
-        <* space
-      in
-      let let_in =
-        mk_let
-        <$> syntax "let" *> ident
-        <* space
-        <*> syntax "=" *> term
-        <* space
-        <*> syntax "in" *> term
-        <* space
-      in
-      let assign = mk_assign <$> ident <* space <*> syntax ":=" *> term in
-      let deref_assign =
-        mk_deref_assign <$> char '*' *> ident <* space <*> syntax ":=" *> term
-      in
-      raise NotImplemented)
+(* let term : tm t = *)
+(*   fix (fun term -> *)
+(*       let var = ident in *)
+(*       let lambda = *)
+(*         mk_lam *)
+(*         <$> (string "\\" <|> string "λ") *> ident *)
+(*         <* char '.' <* space <*> term *)
+(*       in *)
+(*       let app = mk_app <$> term <* space <*> term in *)
+(*       let borrow = mk_borrow <$> char '&' *> term in *)
+(*       let borrow_mut = mk_borrow_mut <$> string "&mut " *> term in *)
+(*       let if_then_else = *)
+(*         mk_if *)
+(*         <$> syntax "if" *> term *)
+(*         <* space *)
+(*         <*> syntax "then" *> term *)
+(*         <* space *)
+(*         <*> syntax "else" *> term *)
+(*         <* space *)
+(*       in *)
+(*       let let_in = *)
+(*         mk_let *)
+(*         <$> syntax "let" *> ident *)
+(*         <* space *)
+(*         <*> syntax "=" *> term *)
+(*         <* space *)
+(*         <*> syntax "in" *> term *)
+(*         <* space *)
+(*       in *)
+(*       let assign = mk_assign <$> ident <* space <*> syntax ":=" *> term in *)
+(*       let deref_assign = *)
+(*         mk_deref_assign <$> char '*' *> ident <* space <*> syntax ":=" *> term *)
+(*       in *)
+(*       raise NotImplemented) *)

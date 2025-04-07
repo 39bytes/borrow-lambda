@@ -1,3 +1,11 @@
 (library
  (name borrow_lambda)
- (libraries angstrom))
+ (libraries angstrom)
+ (inline_tests)
+ (preprocess (pps ppx_jane)))
+
+(env
+    (dev
+      (flags (:standard -warn-error -A))))
+
+

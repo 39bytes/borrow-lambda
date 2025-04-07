@@ -19,8 +19,9 @@
  (name borrow_lambda)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml angstrom)
+ (depends ocaml angstrom ppx_jane)
  (tags
   ("add topics" "to describe" your project)))
+
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
