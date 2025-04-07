@@ -3,7 +3,7 @@ type ref_mod = Mut | Shr
 
 type tm =
   | Var of string
-  | Lam of string * tp * tm
+  | Lam of string * tm
   | App of tm * tm
   | Borrow of tm
   | BorrowMut of tm
@@ -24,6 +24,7 @@ type tm =
   | NatVecGetMut of tm * tm
   | NatVecPush of tm * tm
   | NatVecPop of tm
+  | Annotated of tm * tp
 
 and tp =
   | Nat
