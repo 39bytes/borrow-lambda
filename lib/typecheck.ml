@@ -1,41 +1,13 @@
 open Ast
-module StringSet = Set.Make (String)
 
 exception TypeError of string
-exception MovedValue of string
-exception BorrowedValue of string
-exception BorrowError of string
 exception FreeVariable
 exception NoShadowing
 exception NotImplemented
 
-type var_context = (string * tp) list
-type borrow_context = (string * ref_mod) list
-
-type context = {
-  (* Gamma *)
-  vars : var_context;
-  (* Delta *)
-  used : StringSet.t;
-  (* F *)
-  bound_in_fn : StringSet.t;
-  (* B *)
-  borrowed : borrow_context;
-}
-
-let empty_context =
-  {
-    vars = [];
-    used = StringSet.empty;
-    bound_in_fn = StringSet.empty;
-    borrowed = [];
-  }
+type context = (int * tp) list
 
 (* Type predicates *)
-
-let copy : tp -> bool = function
-  | Nat | Bool | Unit | Ref (_, _, Shr) -> true
-  | _ -> false
 
 let rec subtype (t1 : tp) (t2 : tp) =
   match (t1, t2) with
@@ -61,38 +33,20 @@ let fail_expected_tp expected actual =
        (Printf.sprintf "Expected type '%s', got type '%s'"
           (string_of_tp expected) (string_of_tp actual)))
 
-let fail_borrow_move x =
-  let msg = Printf.sprintf "Cannot move variable '%s' while it is borrowed" x in
-  raise (BorrowedValue msg)
-
-let fail_moved_value x =
-  let msg = Printf.sprintf "Use of moved value '%s'" x in
-  raise (MovedValue msg)
-
 (* Utilities *)
-let find_in_context (ctx : context) (x : string) : tp * lifetime =
+
+let find_in_context (ctx : context) (x : int) : tp * lifetime =
   let rec go vars x index =
     match vars with
     | [] -> raise FreeVariable
-    | (y, tp) :: _ when x = y -> (tp, index)
+    | (y, tp) :: _ when x = y -> (tp, Scope index)
     | _ :: vars -> go vars x (index + 1)
   in
-  go ctx.vars x 0
-
-let bound_in_current (ctx : context) (x : string) : bool =
-  StringSet.exists (( = ) x) ctx.bound_in_fn
-
-let borrow_mod (ctx : context) (x : string) : ref_mod option =
-  List.assoc_opt x ctx.borrowed
-
-let is_borrowed ctx x = borrow_mod ctx x |> Option.is_some
-
-let moved (ctx : context) (x : string) : bool =
-  StringSet.exists (( = ) x) ctx.used
+  go ctx x 0
 
 (* Actual typechecking *)
 
-let rec syn (ctx : context) (t : tm) : context * tp =
+let rec syn (ctx : context) (t : var_id option tm) : (var_id option * tp) tm =
   match t with
   | Var x ->
       let tp, _ = find_in_context ctx x in
@@ -234,7 +188,7 @@ let rec syn (ctx : context) (t : tm) : context * tp =
       let ctx' = check ctx t tp in
       (ctx', tp)
 
-and check (ctx : context) (tm : tm) (tp : tp) : context =
+and check (ctx : context) (tm : tm) (tp : tp) : unit =
   match tm with
   | Var _
   | App (_, _)
