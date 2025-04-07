@@ -5,4 +5,4 @@ build:
     dune build
 
 test:
-    dune test
+    dune runtest
