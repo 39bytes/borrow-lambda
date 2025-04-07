@@ -66,7 +66,7 @@ $$
 $$
 **assignment**
 $$
-\frac{\Gamma \mid \Delta \vdash t :  T \mid \Delta' \quad \Gamma(x) = T}{\Gamma \mid \Delta \vdash x := t : \text{Unit} \mid \Delta' \setminus x}
+\frac{\Gamma \mid \Delta \mid B \vdash t :  T \mid \Delta' \quad \Gamma(x) = T \quad x_{\mu} \not\in B}{\Gamma \mid \Delta \mid B \vdash x := t : \text{Unit} \mid \Delta' \setminus x}
 $$
 **application**
 $$
@@ -101,7 +101,7 @@ $$
 **Borrowing**
 $$
 \begin{align*}
-&\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F \quad x_{\text{mut}} \not\in B}{\Gamma \mid F \mid B \mid \Delta \vdash \&x : \&^{\alpha}_{\text{shr}}\ T \mid \Delta \mid B, x_{\text{shr}}} \\
+&\frac{\Gamma(x) = T, \alpha \quad x \not\in \Delta \quad x \in F \quad x_{\text{mut}} \not\in B}{\Gamma \mid F \mid B \mid \Delta \vdash \&x : \&^{\alpha}_{\text{shr}}\ T \mid \Delta \mid B, x_{\text{shr}}} \\
 \\
 &\frac{\Gamma(x) = \alpha \quad x \not\in \Delta \quad x \in F \quad x_{\mu} \not\in B}{\Gamma \mid F \mid B \mid \Delta \vdash \&\text{mut }x : \&^{\alpha}_{\text{mut}}\ T \mid \Delta \mid B, x_{\text{mut}}} \\
 \\
@@ -140,10 +140,3 @@ $$
 ### References
 https://www.cs.cmu.edu/~janh/courses/ra19/assets/pdf/lect04.pdf
 https://people.mpi-sws.org/~dreyer/papers/rustbelt/paper.pdf
-
-```rust
-fn foo() {
-	let a = 1;
-	let c = a; ?
-}
-```
