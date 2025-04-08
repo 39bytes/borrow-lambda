@@ -2,8 +2,6 @@ open Ast
 
 exception TypeError of string
 exception TypeAnnotationRequired of string
-exception NoShadowing
-exception NotImplemented
 
 type context = (var_id * (tp * lifetime)) list
 

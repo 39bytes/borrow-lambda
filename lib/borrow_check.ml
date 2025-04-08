@@ -39,17 +39,23 @@ let borrow_mod (ctx : context) (x : var_id) : ref_mod option =
 let is_borrowed ctx x = borrow_mod ctx x |> Option.is_some
 let moved (ctx : context) (x : var_id) : bool = IntSet.exists (( = ) x) ctx.used
 
-let rec borrow_check (ctx : context) (tm : tp tm) : context =
+let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
   match tm with
   | Var (name, id), tp ->
       if copy tp then ctx
       else if is_borrowed ctx id then fail_borrow_move name
       else if IntSet.exists (( = ) id) ctx.used then fail_moved_value name
       else { ctx with used = IntSet.add id ctx.used }
-  | Lam (_, _), _ -> failwith "not implemented"
+  (* TODO: check references
+     should be pretty easy..., does it have to be a separate case even?
+     the only possible return type for a reference is with a lifetime variable,
+     but does &'n T count as a subtype of &'a T?
+  *)
+  | Lam ((_, id), body), _ ->
+      borrow_check_rec { ctx with bound_in_fn = IntSet.of_list [ id ] } body
   | App (t1, t2), _ ->
-      let ctx1 = borrow_check ctx t1 in
-      borrow_check ctx1 t2
+      let ctx1 = borrow_check_rec ctx t1 in
+      borrow_check_rec ctx1 t2
   | Borrow t, _ -> (
       match t with
       | Var (name, id), _ -> (
@@ -91,7 +97,7 @@ let rec borrow_check (ctx : context) (tm : tp tm) : context =
           )
       | _ -> raise (BorrowError "Cannot borrow non-variable term"))
   | Deref t, tp ->
-      let ctx' = borrow_check ctx t in
+      let ctx' = borrow_check_rec ctx t in
       if copy tp then ctx'
       else
         raise
@@ -99,29 +105,33 @@ let rec borrow_check (ctx : context) (tm : tp tm) : context =
              (Printf.sprintf "Cannot dereference non-copyable type '%s'"
                 (string_of_tp tp)))
   | IfElse (t1, t2, t3), _ ->
-      let ctx1 = borrow_check ctx t1 in
-      let ctx2 = borrow_check ctx1 t2 in
-      let ctx3 = borrow_check ctx1 t3 in
+      let ctx1 = borrow_check_rec ctx t1 in
+      let ctx2 = borrow_check_rec ctx1 t2 in
+      let ctx3 = borrow_check_rec ctx1 t3 in
       { ctx1 with used = IntSet.union ctx2.used ctx3.used }
   | LetIn ((_, id), t1, t2), _ ->
-      let ctx1 = borrow_check ctx t1 in
-      borrow_check { ctx1 with bound_in_fn = IntSet.add id ctx1.bound_in_fn } t2
+      let ctx1 = borrow_check_rec ctx t1 in
+      borrow_check_rec
+        { ctx1 with bound_in_fn = IntSet.add id ctx1.bound_in_fn }
+        t2
   | Assign ((name, id), t), _ ->
       if is_borrowed ctx id then
         raise
           (BorrowedValue
              (Printf.sprintf "Cannot assign of borrowed value '%s'" name))
       else
-        let ctx' = borrow_check ctx t in
+        let ctx' = borrow_check_rec ctx t in
         (* x has a value again, so we can use it once more *)
         { ctx' with used = IntSet.remove id ctx'.used }
   | Zero, _ -> ctx
-  | Succ t, _ -> borrow_check ctx t
-  | Pred t, _ -> borrow_check ctx t
+  | Succ t, _ -> borrow_check_rec ctx t
+  | Pred t, _ -> borrow_check_rec ctx t
   | True, _ -> ctx
   | False, _ -> ctx
-  | IsZero t, _ -> borrow_check ctx t
+  | IsZero t, _ -> borrow_check_rec ctx t
   | UnitTerm, _ -> ctx
   | Annotated (_, _), _ ->
       failwith "should not have annotated term at borrow check pass"
   | _ -> failwith "not implemented"
+
+let borrow_check = borrow_check_rec empty_context

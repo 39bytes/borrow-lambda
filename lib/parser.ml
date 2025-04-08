@@ -104,6 +104,7 @@ let mk_natvec_get t1 t2 = NNatVecGet (t1, t2)
 let mk_natvec_get_mut t1 t2 = NNatVecGetMut (t1, t2)
 let mk_natvec_push t1 t2 = NNatVecPush (t1, t2)
 let mk_natvec_pop t1 = NNatVecPop t1
+let mk_annotated t1 tp = NAnnotated (t1, tp)
 
 let term : named_tm t =
   fix (fun term ->
@@ -172,7 +173,7 @@ let term : named_tm t =
         mk_natvec_pop <$> keyword "natvec_pop" *> parens term <?> "natvec_pop"
       in
 
-      let exp0 =
+      let exp2 =
         var <|> lambda <|> borrow <|> borrow_mut <|> deref <|> if_then_else
         <|> let_in <|> assign <|> deref_assign <|> _zero <|> succ <|> pred
         <|> _true <|> _false <|> is_zero <|> _unit <|> natvec_make
@@ -180,13 +181,11 @@ let term : named_tm t =
         <|> parens term
       in
 
-      let app = mk_app <$> exp0 <* space <*> exp0 in
-      let exp = app <|> exp0 in
+      let app = mk_app <$> exp2 <* space <*> exp2 in
+      let exp1 = app <|> exp2 in
+      let annotated = mk_annotated <$> exp1 <* syntax ":" <*> type_ in
+      let exp = annotated <|> exp1 in
       exp <?> "term")
 
-let parse p input =
-  match parse_string ~consume:All p input with
-  | Ok res -> res
-  | Error err ->
-      let msg = Printf.sprintf "Parse error: %s" err in
-      failwith msg
+let parse p input = parse_string ~consume:All p input
+let parse_term = parse term
