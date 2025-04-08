@@ -174,27 +174,29 @@ let term : named_tm t =
 
       let exp1 = assign <|> deref_assign <|> exp2 in
 
-      let lambda =
-        mk_lam
-        <$> (syntax "\\" <|> syntax "λ") *> ident
-        <* char '.' <* space <*> term <?> "lambda abstraction"
+      let exp0 =
+        fix (fun exp0 ->
+            let lambda =
+              mk_lam
+              <$> (syntax "\\" <|> syntax "λ") *> ident
+              <* char '.' <* space <*> exp0 <?> "lambda abstraction"
+            in
+            let if_then_else =
+              mk_if
+              <$> keyword "if" *> exp0
+              <*> keyword "then" *> exp0
+              <*> keyword "else" *> exp0
+              <?> "if-then-else"
+            in
+            let let_in =
+              mk_let
+              <$> keyword "let" *> ident
+              <*> syntax "=" *> exp0
+              <*> keyword "in" *> exp0
+              <?> "let-in"
+            in
+            if_then_else <|> let_in <|> lambda <|> exp1)
       in
-      let if_then_else =
-        mk_if
-        <$> keyword "if" *> term
-        <*> keyword "then" *> term
-        <*> keyword "else" *> term
-        <?> "if-then-else"
-      in
-      let let_in =
-        mk_let
-        <$> keyword "let" *> ident
-        <*> syntax "=" *> term
-        <*> keyword "in" *> term
-        <?> "let-in"
-      in
-      let exp0 = if_then_else <|> let_in <|> lambda <|> exp1 in
-
       let annotated = mk_annotated <$> exp0 <* syntax ":" <*> type_ in
       let exp = annotated <|> exp0 in
       exp <?> "term")
