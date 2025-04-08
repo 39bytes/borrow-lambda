@@ -22,7 +22,10 @@ let rec subtype (t1 : tp) (t2 : tp) =
   match (t1, t2) with
   | Ref (alpha, tp1, mod1), Ref (beta, tp2, mod2) -> (
       let compatible_lifetimes =
-        match (alpha, beta) with Scope x, Scope y -> x <= y | _ -> true
+        (* TODO: disallow mixing lifetime variables *)
+        match (alpha, beta) with
+        | Scope x, Scope y -> x <= y
+        | _ -> true
       in
       if not compatible_lifetimes then false
       else if not (subtype tp1 tp2) then false
@@ -100,6 +103,13 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
       let tp, _ = find_in_context ctx id in
       let tagged_rhs = check ctx t tp in
       (Assign ((name, id), tagged_rhs), Unit)
+  | DerefAssign ((name, id), t), _ -> (
+      let tp, _ = find_in_context ctx id in
+      match tp with
+      | Ref (_, ref_tp, Mut) ->
+          let tagged_rhs = check ctx t ref_tp in
+          (DerefAssign ((name, id), tagged_rhs), Unit)
+      | _ -> raise (TypeError "Cannot assign to non-mutable reference type"))
   | IfElse _, _ ->
       raise
         (TypeAnnotationRequired
@@ -108,13 +118,6 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
       raise
         (TypeAnnotationRequired
            "Could not infer type of let/in, type annotation required")
-  | DerefAssign ((name, id), t), _ -> (
-      let tp, _ = find_in_context ctx id in
-      match tp with
-      | Ref (_, ref_tp, Mut) ->
-          let tagged_rhs = check ctx t ref_tp in
-          (DerefAssign ((name, id), tagged_rhs), Unit)
-      | _ -> raise (TypeError "Cannot assign to non-mutable reference type"))
   | Zero, _ -> (Zero, Nat)
   | Succ t, _ -> (Succ (check ctx t Nat), Nat)
   | Pred t, _ -> (Pred (check ctx t Nat), Nat)
