@@ -70,13 +70,13 @@ let string_of_lifetime lft =
   match lft with LifetimeVar v -> v | Scope n -> string_of_int n | Any -> "?"
 
 let rec string_of_tp = function
-  | Nat -> "Nat"
-  | Bool -> "Bool"
-  | Unit -> "Unit"
+  | Nat -> "nat"
+  | Bool -> "bool"
+  | Unit -> "unit"
   | Arrow (t1, t2) ->
       Printf.sprintf "%s -> %s" (string_of_tp t1) (string_of_tp t2)
   | Ref (lft, t, Shr) ->
       Printf.sprintf "&%s %s" (string_of_lifetime lft) (string_of_tp t)
   | Ref (lft, t, Mut) ->
       Printf.sprintf "&%s mut %s" (string_of_lifetime lft) (string_of_tp t)
-  | NatVec -> "NatVec"
+  | NatVec -> "natvec"

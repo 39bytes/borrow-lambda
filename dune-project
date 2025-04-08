@@ -19,7 +19,7 @@
  (name borrow_lambda)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml angstrom ppx_jane)
+ (depends ocaml angstrom (alcotest :with-test))
  (tags
   ("add topics" "to describe" your project)))
 

@@ -75,10 +75,11 @@ let type_ : tp t =
       let unit = keyword "unit" *> return Unit in
       let natvec = keyword "natvec" *> return NatVec in
       let ref =
-        mk_ref
-        <$> syntax "&" *> lifetime
-        <*> option Shr (keyword "mut" *> return Mut)
-        <*> type_
+        fix (fun ref ->
+            mk_ref
+            <$> syntax "&" *> lifetime
+            <*> option Shr (keyword "mut" *> return Mut)
+            <*> (nat <|> bool <|> unit <|> natvec <|> ref <|> parens type_))
       in
       let base_type =
         nat <|> bool <|> unit <|> natvec <|> ref <|> parens type_
@@ -109,45 +110,9 @@ let mk_annotated t1 tp = NAnnotated (t1, tp)
 let term : named_tm t =
   fix (fun term ->
       let var = mk_var <$> ident <?> "variable" in
-      let lambda =
-        mk_lam
-        <$> (syntax "\\" <|> syntax "λ") *> ident
-        <* char '.' <* space <*> term <?> "lambda abstraction"
-      in
-      let borrow = mk_borrow <$> syntax "&" *> term <?> "immutable borrow" in
-      let borrow_mut =
-        mk_borrow_mut <$> syntax "&mut " *> term <?> "mutable borrow"
-      in
-      let deref = mk_deref <$> syntax "*" *> term <?> "dereference" in
-      let if_then_else =
-        mk_if
-        <$> keyword "if" *> term
-        <*> keyword "then" *> term
-        <*> keyword "else" *> term
-        <?> "if-then-else"
-      in
-      let let_in =
-        mk_let
-        <$> keyword "let" *> ident
-        <*> syntax "=" *> term
-        <*> keyword "in" *> term
-        <?> "let-in"
-      in
-      let assign =
-        mk_assign <$> ident <*> syntax ":=" *> term <?> "assignment"
-      in
-      let deref_assign =
-        mk_deref_assign
-        <$> char '*' *> ident
-        <*> syntax ":=" *> term
-        <?> "deref assignment"
-      in
       let _zero = char '0' *> space *> return NZero <?> "zero" in
-      let succ = mk_succ <$> keyword "succ" *> term <?> "succ" in
-      let pred = mk_pred <$> keyword "pred" *> term <?> "pred" in
       let _true = keyword "true" *> return NTrue <?> "true" in
       let _false = keyword "false" *> return NFalse <?> "false" in
-      let is_zero = mk_is_zero <$> keyword "iszero" *> term <?> "iszero" in
       let _unit = keyword "unit" *> return NUnit <?> "unit" in
       let natvec_make =
         mk_natvec_make
@@ -173,19 +138,66 @@ let term : named_tm t =
         mk_natvec_pop <$> keyword "natvec_pop" *> parens term <?> "natvec_pop"
       in
 
-      let exp2 =
-        var <|> lambda <|> borrow <|> borrow_mut <|> deref <|> if_then_else
-        <|> let_in <|> assign <|> deref_assign <|> _zero <|> succ <|> pred
-        <|> _true <|> _false <|> is_zero <|> _unit <|> natvec_make
+      let exp5 =
+        var <|> _zero <|> _true <|> _false <|> _unit <|> natvec_make
         <|> natvec_get <|> natvec_get_mut <|> natvec_push <|> natvec_pop
         <|> parens term
       in
 
-      let app = mk_app <$> exp2 <* space <*> exp2 in
-      let exp1 = app <|> exp2 in
-      let annotated = mk_annotated <$> exp1 <* syntax ":" <*> type_ in
-      let exp = annotated <|> exp1 in
+      let app = mk_app <$> exp5 <* space <*> exp5 in
+
+      let exp4 = app <|> exp5 in
+
+      let succ = mk_succ <$> keyword "succ" *> exp4 <?> "succ" in
+      let pred = mk_pred <$> keyword "pred" *> exp4 <?> "pred" in
+      let is_zero = mk_is_zero <$> keyword "iszero" *> exp4 <?> "iszero" in
+
+      let exp3 = succ <|> pred <|> is_zero <|> exp4 in
+
+      let borrow = mk_borrow <$> syntax "&" *> exp3 <?> "immutable borrow" in
+      let borrow_mut =
+        mk_borrow_mut <$> syntax "&mut " *> exp3 <?> "mutable borrow"
+      in
+      let deref = mk_deref <$> syntax "*" *> exp3 <?> "dereference" in
+
+      let exp2 = borrow <|> borrow_mut <|> deref <|> exp3 in
+
+      let assign =
+        mk_assign <$> ident <*> syntax ":=" *> exp2 <?> "assignment"
+      in
+      let deref_assign =
+        mk_deref_assign
+        <$> char '*' *> ident
+        <*> syntax ":=" *> exp2
+        <?> "deref assignment"
+      in
+
+      let exp1 = assign <|> deref_assign <|> exp2 in
+
+      let lambda =
+        mk_lam
+        <$> (syntax "\\" <|> syntax "λ") *> ident
+        <* char '.' <* space <*> term <?> "lambda abstraction"
+      in
+      let if_then_else =
+        mk_if
+        <$> keyword "if" *> term
+        <*> keyword "then" *> term
+        <*> keyword "else" *> term
+        <?> "if-then-else"
+      in
+      let let_in =
+        mk_let
+        <$> keyword "let" *> ident
+        <*> syntax "=" *> term
+        <*> keyword "in" *> term
+        <?> "let-in"
+      in
+      let exp0 = if_then_else <|> let_in <|> lambda <|> exp1 in
+
+      let annotated = mk_annotated <$> exp0 <* syntax ":" <*> type_ in
+      let exp = annotated <|> exp0 in
       exp <?> "term")
 
-let parse p input = parse_string ~consume:All p input
+let parse p input = parse_string ~consume:All p (String.trim input)
 let parse_term = parse term

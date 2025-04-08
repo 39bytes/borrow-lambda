@@ -175,3 +175,5 @@ and check (ctx : context) (tm : unit tm) (tp : tp) : tp tm =
       let typed_tm, inferred = syn ctx tm in
       if not (inferred <: tp) then fail_expected_tp tp inferred
       else (typed_tm, inferred)
+
+let typecheck tm = syn [] tm

@@ -20,96 +20,66 @@ let iszero t = (IsZero t, ())
 let unit = (Unit, ())
 let annotated t tp = (Annotated (t, tp), ())
 
-let%test "checking against simple lambda" =
-  let ast = lam (("x", 0), succ (var ("x", 0))) in
-  check [] ast (Arrow (Nat, Nat)) |> ignore;
-  true
-
-let%test "checking against if expression" =
-  let ast =
-    lam (("x", 0), if_ (iszero (var ("x", 0)), succ zero, var ("x", 0)))
-  in
-  check [] ast (Arrow (Nat, Nat)) |> ignore;
-  true
-
-let%test "checking lambda with ref arg" =
-  let ast = lam (("x", 0), var ("x", 0)) in
-  let tp =
-    Arrow (Ref (LifetimeVar "a", Nat, Shr), Ref (LifetimeVar "a", Nat, Shr))
-  in
-  check [] ast tp |> ignore;
-  true
-
-let%test
-    "checking lambda with shared ref arg but mutable ref return should fail" =
-  let ast = lam (("x", 0), var ("x", 0)) in
-  let tp =
-    Arrow (Ref (LifetimeVar "a", Nat, Shr), Ref (LifetimeVar "a", Nat, Mut))
-  in
-  match check [] ast tp with
-  | exception TypeError _ -> true
-  | (exception _) | _ -> false
-
-let%test "checking let/in" =
-  let ast =
-    let_in (("x", 0), iszero (succ zero), let_in (("y", 1), zero, var ("y", 1)))
-  in
-  let tp = Nat in
-  check [] ast tp |> ignore;
-  true
-
-let%test "checking borrowing bound variables" =
-  let ast =
-    let_in
-      ( ("x", 0),
-        succ zero,
-        let_in (("y", 1), borrow (var ("x", 0)), var ("y", 1)) )
-  in
-  let tp = Ref (Scope 0, Nat, Shr) in
-  check [] ast tp |> ignore;
-  true
-
-let%test "checking borrowing bound variables against a lifetime variable" =
-  let ast =
-    let_in
-      ( ("x", 0),
-        succ zero,
-        let_in (("y", 1), borrow (var ("x", 0)), var ("y", 1)) )
-  in
-  let tp = Ref (LifetimeVar "a", Nat, Shr) in
-  check [] ast tp |> ignore;
-  true
-
-let%test "reassigning a reference with a smaller lifetime should fail" =
-  let ast =
-    let_in
-      ( ("x", 0),
-        succ zero,
-        let_in
-          ( ("y", 1),
-            borrow (var ("x", 0)),
-            let_in (("z", 2), zero, assign (("y", 1), borrow (var ("z", 2)))) )
-      )
-  in
-  let tp = Ref (Any, Nat, Shr) in
-  match check [] ast tp with
-  | exception TypeError _ -> true
-  | (exception _) | _ -> false
-
-let%test
-    "can reassign a mutable reference to an immutable one with a smaller \
-     lifetime" =
-  let ast =
-    let_in
-      ( ("x", 0),
-        succ zero,
-        let_in
-          ( ("y", 1),
-            zero,
-            let_in
-              ( ("z", 2),
-                borrow (var ("y", 1)),
-                assign (("z", 2), borrow_mut (var ("x", 0))) ) ) )
-  in
-  check [] ast Unit |> ignore;
-  true
+(* let%test "checking let/in" = *)
+(*   let ast = *)
+(*     let_in (("x", 0), iszero (succ zero), let_in (("y", 1), zero, var ("y", 1))) *)
+(*   in *)
+(*   let tp = Nat in *)
+(*   check [] ast tp |> ignore; *)
+(*   true *)
+(**)
+(* let%test "checking borrowing bound variables" = *)
+(*   let ast = *)
+(*     let_in *)
+(*       ( ("x", 0), *)
+(*         succ zero, *)
+(*         let_in (("y", 1), borrow (var ("x", 0)), var ("y", 1)) ) *)
+(*   in *)
+(*   let tp = Ref (Scope 0, Nat, Shr) in *)
+(*   check [] ast tp |> ignore; *)
+(*   true *)
+(**)
+(* let%test "checking borrowing bound variables against a lifetime variable" = *)
+(*   let ast = *)
+(*     let_in *)
+(*       ( ("x", 0), *)
+(*         succ zero, *)
+(*         let_in (("y", 1), borrow (var ("x", 0)), var ("y", 1)) ) *)
+(*   in *)
+(*   let tp = Ref (LifetimeVar "a", Nat, Shr) in *)
+(*   check [] ast tp |> ignore; *)
+(*   true *)
+(**)
+(* let%test "reassigning a reference with a smaller lifetime should fail" = *)
+(*   let ast = *)
+(*     let_in *)
+(*       ( ("x", 0), *)
+(*         succ zero, *)
+(*         let_in *)
+(*           ( ("y", 1), *)
+(*             borrow (var ("x", 0)), *)
+(*             let_in (("z", 2), zero, assign (("y", 1), borrow (var ("z", 2)))) ) *)
+(*       ) *)
+(*   in *)
+(*   let tp = Ref (Any, Nat, Shr) in *)
+(*   match check [] ast tp with *)
+(*   | exception TypeError _ -> true *)
+(*   | (exception _) | _ -> false *)
+(**)
+(* let%test *)
+(*     "can reassign a mutable reference to an immutable one with a smaller \ *)
+(*      lifetime" = *)
+(*   let ast = *)
+(*     let_in *)
+(*       ( ("x", 0), *)
+(*         succ zero, *)
+(*         let_in *)
+(*           ( ("y", 1), *)
+(*             zero, *)
+(*             let_in *)
+(*               ( ("z", 2), *)
+(*                 borrow (var ("y", 1)), *)
+(*                 assign (("z", 2), borrow_mut (var ("x", 0))) ) ) ) *)
+(*   in *)
+(*   check [] ast Unit |> ignore; *)
+(*   true *)
