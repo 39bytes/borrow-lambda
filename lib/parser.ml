@@ -46,12 +46,18 @@ let ident_like =
   return (make_string (c :: cs)) <* space
 
 let ident =
-  ident_like >>= fun i ->
-  if List.mem i keywords then fail "failed to parse identifier" else return i
+  ident_like
+  >>= (fun i ->
+  if List.mem i keywords then fail "Expected identifier but got keyword"
+  else return i)
+  <?> "identifier"
 
 let keyword s =
   ident_like >>= fun i ->
-  if i = s then return () else fail "did not match keyword"
+  if i = s then return ()
+  else
+    fail (Printf.sprintf "Expected keyword '%s' but got '%s'" s i)
+    <?> "keyword '" ^ s ^ "'"
 
 let syntax s = string s *> space
 let parens p = syntax "(" *> p <* syntax ")"
@@ -101,55 +107,70 @@ let mk_natvec_pop t1 = NNatVecPop t1
 
 let term : named_tm t =
   fix (fun term ->
-      let var = mk_var <$> ident in
+      let var = mk_var <$> ident <?> "variable" in
       let lambda =
         mk_lam
         <$> (syntax "\\" <|> syntax "λ") *> ident
-        <* char '.' <* space <*> term
+        <* char '.' <* space <*> term <?> "lambda abstraction"
       in
-      let borrow = mk_borrow <$> syntax "&" *> term in
-      let borrow_mut = mk_borrow_mut <$> syntax "&mut " *> term in
-      let deref = mk_deref <$> syntax "*" *> term in
+      let borrow = mk_borrow <$> syntax "&" *> term <?> "immutable borrow" in
+      let borrow_mut =
+        mk_borrow_mut <$> syntax "&mut " *> term <?> "mutable borrow"
+      in
+      let deref = mk_deref <$> syntax "*" *> term <?> "dereference" in
       let if_then_else =
         mk_if
         <$> keyword "if" *> term
         <*> keyword "then" *> term
         <*> keyword "else" *> term
+        <?> "if-then-else"
       in
       let let_in =
         mk_let
         <$> keyword "let" *> ident
         <*> syntax "=" *> term
         <*> keyword "in" *> term
+        <?> "let-in"
       in
-      let assign = mk_assign <$> ident <*> syntax ":=" *> term in
+      let assign =
+        mk_assign <$> ident <*> syntax ":=" *> term <?> "assignment"
+      in
       let deref_assign =
-        mk_deref_assign <$> char '*' *> ident <*> syntax ":=" *> term
+        mk_deref_assign
+        <$> char '*' *> ident
+        <*> syntax ":=" *> term
+        <?> "deref assignment"
       in
-      let _zero = char '0' *> space *> return NZero in
-      let succ = mk_succ <$> keyword "succ" *> term in
-      let pred = mk_pred <$> keyword "pred" *> term in
-      let _true = keyword "true" *> return NTrue in
-      let _false = keyword "false" *> return NFalse in
-      let is_zero = mk_is_zero <$> keyword "iszero" *> term in
-      let _unit = keyword "unit" *> return NUnit in
+      let _zero = char '0' *> space *> return NZero <?> "zero" in
+      let succ = mk_succ <$> keyword "succ" *> term <?> "succ" in
+      let pred = mk_pred <$> keyword "pred" *> term <?> "pred" in
+      let _true = keyword "true" *> return NTrue <?> "true" in
+      let _false = keyword "false" *> return NFalse <?> "false" in
+      let is_zero = mk_is_zero <$> keyword "iszero" *> term <?> "iszero" in
+      let _unit = keyword "unit" *> return NUnit <?> "unit" in
       let natvec_make =
         mk_natvec_make
         <$> keyword "natvec_make" *> parens (sep_by (syntax ",") term)
+        <?> "natvec_make"
       in
       let natvec_get =
         keyword "natvec_get"
         *> parens (mk_natvec_get <$> term <* syntax "," <*> term)
+        <?> "natvec_get"
       in
       let natvec_get_mut =
         keyword "natvec_get_mut"
         *> parens (mk_natvec_get_mut <$> term <* syntax "," <*> term)
+        <?> "natvec_get_mut"
       in
       let natvec_push =
         keyword "natvec_push"
         *> parens (mk_natvec_push <$> term <* syntax "," <*> term)
+        <?> "natvec_push"
       in
-      let natvec_pop = mk_natvec_pop <$> keyword "natvec_pop" *> parens term in
+      let natvec_pop =
+        mk_natvec_pop <$> keyword "natvec_pop" *> parens term <?> "natvec_pop"
+      in
 
       let exp0 =
         var <|> lambda <|> borrow <|> borrow_mut <|> deref <|> if_then_else
@@ -161,9 +182,11 @@ let term : named_tm t =
 
       let app = mk_app <$> exp0 <* space <*> exp0 in
       let exp = app <|> exp0 in
-      exp)
+      exp <?> "term")
 
-let parse_term input =
-  match parse_string ~consume:All term input with
+let parse p input =
+  match parse_string ~consume:All p input with
   | Ok res -> res
-  | Error err -> failwith "Parse error"
+  | Error err ->
+      let msg = Printf.sprintf "Parse error: %s" err in
+      failwith msg
