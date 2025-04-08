@@ -93,11 +93,11 @@ let mk_deref_assign x t = NDerefAssign (x, t)
 let mk_succ t = NSucc t
 let mk_pred t = NPred t
 let mk_is_zero t = NIsZero t
-let mk_nat_vec_make ts = NNatVecMake ts
-let mk_nat_vec_get t1 t2 = NNatVecGet (t1, t2)
-let mk_nat_vec_get_mut t1 t2 = NNatVecGetMut (t1, t2)
-let mk_nat_vec_push t1 t2 = NNatVecPush (t1, t2)
-let mk_nat_vec_pop t1 = NNatVecPop t1
+let mk_natvec_make ts = NNatVecMake ts
+let mk_natvec_get t1 t2 = NNatVecGet (t1, t2)
+let mk_natvec_get_mut t1 t2 = NNatVecGetMut (t1, t2)
+let mk_natvec_push t1 t2 = NNatVecPush (t1, t2)
+let mk_natvec_pop t1 = NNatVecPop t1
 
 let term : named_tm t =
   fix (fun term ->
@@ -133,31 +133,29 @@ let term : named_tm t =
       let _false = keyword "false" *> return NFalse in
       let is_zero = mk_is_zero <$> keyword "iszero" *> term in
       let _unit = keyword "unit" *> return NUnit in
-      let nat_vec_make =
-        mk_nat_vec_make
-        <$> keyword "nat_vec_make" *> parens (sep_by (syntax ",") term)
+      let natvec_make =
+        mk_natvec_make
+        <$> keyword "natvec_make" *> parens (sep_by (syntax ",") term)
       in
-      let nat_vec_get =
-        keyword "nat_vec_get"
-        *> parens (mk_nat_vec_get <$> term <* syntax "," <*> term)
+      let natvec_get =
+        keyword "natvec_get"
+        *> parens (mk_natvec_get <$> term <* syntax "," <*> term)
       in
-      let nat_vec_get_mut =
-        keyword "nat_vec_get_mut"
-        *> parens (mk_nat_vec_get_mut <$> term <* syntax "," <*> term)
+      let natvec_get_mut =
+        keyword "natvec_get_mut"
+        *> parens (mk_natvec_get_mut <$> term <* syntax "," <*> term)
       in
-      let nat_vec_push =
-        keyword "nat_vec_push"
-        *> parens (mk_nat_vec_push <$> term <* syntax "," <*> term)
+      let natvec_push =
+        keyword "natvec_push"
+        *> parens (mk_natvec_push <$> term <* syntax "," <*> term)
       in
-      let nat_vec_pop =
-        mk_nat_vec_pop <$> keyword "nat_vec_pop" *> parens term
-      in
+      let natvec_pop = mk_natvec_pop <$> keyword "natvec_pop" *> parens term in
 
       let exp0 =
         var <|> lambda <|> borrow <|> borrow_mut <|> deref <|> if_then_else
         <|> let_in <|> assign <|> deref_assign <|> _zero <|> succ <|> pred
-        <|> _true <|> _false <|> is_zero <|> _unit <|> nat_vec_make
-        <|> nat_vec_get <|> nat_vec_get_mut <|> nat_vec_push <|> nat_vec_pop
+        <|> _true <|> _false <|> is_zero <|> _unit <|> natvec_make
+        <|> natvec_get <|> natvec_get_mut <|> natvec_push <|> natvec_pop
         <|> parens term
       in
 
