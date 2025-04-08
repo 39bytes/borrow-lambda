@@ -7,11 +7,22 @@ exception NotImplemented
 
 type context = (var_id * (tp * lifetime)) list
 
+let rec print_context (ctx : context) =
+  let () = print_endline "context:" in
+  match ctx with
+  | [] -> print_endline "done"
+  | (id, (tp, lft)) :: ctx ->
+      let () =
+        Printf.printf "%d : %s %s\n" id (string_of_tp tp)
+          (string_of_lifetime lft)
+      in
+      print_context ctx
+
 let rec subtype (t1 : tp) (t2 : tp) =
   match (t1, t2) with
   | Ref (alpha, tp1, mod1), Ref (beta, tp2, mod2) -> (
       let compatible_lifetimes =
-        match (alpha, beta) with Scope x, Scope y -> x >= y | _ -> true
+        match (alpha, beta) with Scope x, Scope y -> x <= y | _ -> true
       in
       if not compatible_lifetimes then false
       else if not (subtype tp1 tp2) then false
@@ -161,5 +172,5 @@ and check (ctx : context) (tm : unit tm) (tp : tp) : tp tm =
       if tp <> anno_tp then fail_expected_tp tp anno_tp else check ctx t tp
   | _ ->
       let typed_tm, inferred = syn ctx tm in
-      if not (inferred <: tp) then fail_expected_tp inferred tp
+      if not (inferred <: tp) then fail_expected_tp tp inferred
       else (typed_tm, inferred)
