@@ -26,6 +26,12 @@ let should_pass =
     ( "borrowing bound variables",
       fun () ->
         Passes.typecheck {| (let x = succ 0 in let y = &x in y) : &'a nat |} );
+    ( "can reassign a mutable reference to an immutable one with a smaller \
+       lifetime",
+      fun () ->
+        Passes.typecheck
+          {| let x = succ 0 in let y = 0 in let z = &y in z := &mut x : unit |}
+    );
   ]
   |> List.map Utils.check_pass |> List.map Utils.make_test
 
@@ -42,7 +48,7 @@ let should_fail =
       Typecheck.TypeError "Expected type '&'0 nat', got type '&'2 nat'",
       fun () ->
         Passes.typecheck
-          {| (let x = succ 0 in let y = &x in let z = 0 in y := &z) : &'a nat |}
+          {| let x = succ 0 in let y = &x in let z = 0 in y := &z : &'a nat |}
     );
   ]
   |> List.map check_fail |> List.map Utils.make_test
