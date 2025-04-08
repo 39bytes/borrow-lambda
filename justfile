@@ -6,3 +6,6 @@ build:
 
 test:
     dune runtest
+
+utop:
+    TM=$(mktemp) && dune ocaml top > "$TM" && cat init.ml >> "$TM" && utop -init "$TM"
