@@ -121,7 +121,7 @@ let rec borrow_check (ctx : context) (tm : tp tm) : context =
   | True, _ -> ctx
   | False, _ -> ctx
   | IsZero t, _ -> borrow_check ctx t
-  | Unit, _ -> ctx
+  | UnitTerm, _ -> ctx
   | Annotated (_, _), _ ->
       failwith "should not have annotated term at borrow check pass"
   | _ -> failwith "not implemented"

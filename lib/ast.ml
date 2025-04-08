@@ -54,7 +54,7 @@ and 'a tm' =
   | True
   | False
   | IsZero of 'a tm
-  | Unit
+  | UnitTerm
   | NatVecMake of 'a tm list
   | NatVecGet of 'a tm * 'a tm
   | NatVecGetMut of 'a tm * 'a tm

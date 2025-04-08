@@ -121,7 +121,7 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
   | True, _ -> (True, Bool)
   | False, _ -> (False, Bool)
   | IsZero t, _ -> (IsZero (check ctx t Nat), Bool)
-  | Unit, _ -> (Unit, Unit)
+  | UnitTerm, _ -> (UnitTerm, Unit)
   | NatVecMake ts, _ ->
       let args = List.map (fun t -> check ctx t Nat) ts in
       (NatVecMake args, NatVec)

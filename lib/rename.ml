@@ -44,7 +44,7 @@ let rec rename (tm : named_tm) (ctx : int StringMap.t) : unit tm =
     | NTrue -> True
     | NFalse -> False
     | NIsZero t -> IsZero (rename t ctx)
-    | NUnit -> Unit
+    | NUnit -> UnitTerm
     | NNatVecMake ts -> NatVecMake (List.map (fun t -> rename t ctx) ts)
     | NNatVecGet (t1, t2) -> NatVecGet (rename t1 ctx, rename t2 ctx)
     | NNatVecGetMut (t1, t2) -> NatVecGetMut (rename t1 ctx, rename t2 ctx)
