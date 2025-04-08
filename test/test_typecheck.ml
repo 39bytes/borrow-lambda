@@ -6,6 +6,9 @@ let check_fail (name, exn, f) =
 
 (* Tests *)
 
+(* Tests that should pass with no exception are here, 
+   the suite is given as a list of tuples where the first element is
+   the name of the test, and the second element is a function with the test code.*)
 let should_pass =
   [
     ( "basic lambda check",
@@ -26,6 +29,10 @@ let should_pass =
   ]
   |> List.map Utils.check_pass |> List.map Utils.make_test
 
+(* Tests that should throw are here, 
+   the suite is given as a list of tuples where the first element is
+   the name of the test, the second is the expected exception, and
+   and the third element is a function with the test code.*)
 let should_fail =
   [
     ( "checking lambda with shared ref arg but mutable ref return should fail",
