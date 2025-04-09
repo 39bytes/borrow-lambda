@@ -12,4 +12,7 @@ end
 let check_pass (name, v) =
   (name, fun () -> Alcotest.(check unit) name (v () |> ignore) ())
 
+let check_fail (name, exn, f) =
+  (name, fun () -> Alcotest.check_raises name exn (fun () -> f () |> ignore))
+
 let make_test (name, f) = Alcotest.test_case name `Quick f

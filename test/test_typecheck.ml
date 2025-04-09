@@ -1,9 +1,6 @@
 open Borrow_lambda
 open Utils
 
-let check_fail (name, exn, f) =
-  (name, fun () -> Alcotest.check_raises name exn (fun () -> f () |> ignore))
-
 (* Tests *)
 
 (* Tests that should pass with no exception are here, 
@@ -81,7 +78,7 @@ let should_fail =
              unit |}
     );
   ]
-  |> List.map check_fail |> List.map Utils.make_test
+  |> List.map Utils.check_fail |> List.map Utils.make_test
 
 let suite = should_pass @ should_fail
 let () = ()
