@@ -12,8 +12,8 @@ type value =
   | VTrue
   | VFalse
   | VUnit
-  | VRef of var_id
-  | VNatVec of value list
+  | VRef of (var_id * int option)
+  | VNatVec of value Dynarray.t
   | VLam of var_id * tp tm (* var, body *)
 
 (* convert Nats to OCaml integers to use with the underlying list representation of NatVec *)
@@ -28,9 +28,16 @@ let nat_to_int (nat : value) : int =
 
 let eval (tm : tp tm) : value =
   let env = ref VarIdMap.empty in
-  let lookup id = VarIdMap.find id !env in
-  let write_value id v = env := VarIdMap.add id v !env in
-
+  let lookup id offset =
+    match (VarIdMap.find id !env, offset) with
+    | VNatVec ns, Some offset -> Dynarray.get ns offset
+    | v, _ -> v
+  in
+  let write_value id offset v =
+    match (VarIdMap.find id !env, offset) with
+    | VNatVec ns, Some offset -> Dynarray.set ns offset v
+    | _, _ -> env := VarIdMap.add id v !env
+  in
   let rec go (tm : tp tm) : value =
     match fst tm with
     | Zero -> VZero
@@ -38,18 +45,20 @@ let eval (tm : tp tm) : value =
     | True -> VTrue
     | False -> VFalse
     | UnitTerm -> VUnit
-    | Var (_, id) -> lookup id
+    | Var (_, id) -> lookup id None
     | Deref t -> (
-        match go t with VRef id -> lookup id | _ -> failwith "impossible")
+        match go t with
+        | VRef (id, offset) -> lookup id offset
+        | _ -> failwith "impossible")
     | Assign ((_, id), t) ->
         let v = go t in
-        write_value id v;
+        write_value id None v;
         VUnit
     | DerefAssign ((_, id), t) -> (
         let v = go t in
         match v with
-        | VRef id ->
-            write_value id v;
+        | VRef (id, offset) ->
+            write_value id offset v;
             VUnit
         | _ -> failwith "impossible")
     | IfElse (t1, t2, t3) -> (
@@ -68,23 +77,26 @@ let eval (tm : tp tm) : value =
         | VSucc t' -> t'
         | _ -> failwith "impossible")
     | Borrow t | BorrowMut t -> (
-        match fst t with Var (_, id) -> VRef id | _ -> failwith "impossible")
+        match fst t with
+        | Var (_, id) -> VRef (id, None)
+        | _ -> failwith "impossible")
     | Lam ((_, id), b) -> VLam (id, b)
     | App (t1, t2) -> (
         let t1' = go t1 in
         let t2' = go t2 in
         match t1' with
         | VLam (id, b) ->
-            write_value id t2';
+            write_value id None t2';
             go b
         | _ -> failwith "impossible")
     | LetIn ((_, id), t1, t2) ->
         let t1' = go t1 in
-        write_value id t1';
+        write_value id None t1';
         go t2
     | _ -> failwith "not implemented"
   in
   go tm
+
 (* | NatVecMake tms -> VNatVec (List.map (eval env) tms) *)
 (* | NatVecGet (t1, t2) | NatVecGetMut (t1, t2) -> ( *)
 (*     let vec = eval env t1 in *)
