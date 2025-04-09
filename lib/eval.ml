@@ -54,7 +54,7 @@ let eval (tm : tp tm) : value =
         let v = go t in
         write_value id None v;
         VUnit
-    | DerefAssign ((_, id), t) -> (
+    | DerefAssign ((_, _), t) -> (
         let v = go t in
         match v with
         | VRef (id, offset) ->
@@ -93,6 +93,38 @@ let eval (tm : tp tm) : value =
         let t1' = go t1 in
         write_value id None t1';
         go t2
+    | NatVecMake tms ->
+        let arr = Dynarray.create () in
+        List.iter (fun v -> Dynarray.add_last arr (go v)) tms;
+        VNatVec arr
+    | NatVecGet (t1, t2) | NatVecGetMut (t1, t2) -> (
+        let vec_ref = go t1 in
+        let idx = go t2 in
+        match vec_ref with
+        | VRef (id, _) -> (
+            match lookup id None with
+            | VNatVec _ -> VRef (id, Some (nat_to_int idx))
+            | _ -> failwith "impossible")
+        | _ -> failwith "impossible")
+    | NatVecPush (t1, t2) -> (
+        let vec_ref = go t1 in
+        let v = go t2 in
+        match vec_ref with
+        | VRef (id, _) -> (
+            match lookup id None with
+            | VNatVec vs ->
+                Dynarray.add_last vs v;
+                VUnit
+            | _ -> failwith "impossible")
+        | _ -> failwith "impossible")
+    | NatVecPop t -> (
+        let vec_ref = go t in
+        match vec_ref with
+        | VRef (id, _) -> (
+            match lookup id None with
+            | VNatVec vs -> Dynarray.pop_last vs
+            | _ -> failwith "impossible")
+        | _ -> failwith "impossible")
     | _ -> failwith "not implemented"
   in
   go tm
