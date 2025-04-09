@@ -138,11 +138,19 @@ let term : named_tm t =
         mk_natvec_pop <$> keyword "natvec_pop" *> parens term <?> "natvec_pop"
       in
 
-      let exp5 =
+      let exp6 =
         var <|> _zero <|> _true <|> _false <|> _unit <|> natvec_make
         <|> natvec_get <|> natvec_get_mut <|> natvec_push <|> natvec_pop
         <|> parens term
       in
+
+      let borrow = mk_borrow <$> syntax "&" *> exp6 <?> "immutable borrow" in
+      let borrow_mut =
+        mk_borrow_mut <$> syntax "&mut " *> exp6 <?> "mutable borrow"
+      in
+      let deref = mk_deref <$> syntax "*" *> exp6 <?> "dereference" in
+
+      let exp5 = borrow <|> borrow_mut <|> deref <|> exp6 in
 
       let app = mk_app <$> exp5 <* space <*> exp5 in
 
@@ -153,12 +161,6 @@ let term : named_tm t =
       let is_zero = mk_is_zero <$> keyword "iszero" *> exp4 <?> "iszero" in
 
       let exp3 = succ <|> pred <|> is_zero <|> exp4 in
-
-      let borrow = mk_borrow <$> syntax "&" *> exp3 <?> "immutable borrow" in
-      let borrow_mut =
-        mk_borrow_mut <$> syntax "&mut " *> exp3 <?> "mutable borrow"
-      in
-      let deref = mk_deref <$> syntax "*" *> exp3 <?> "dereference" in
 
       let exp2 = borrow <|> borrow_mut <|> deref <|> exp3 in
 
@@ -172,33 +174,36 @@ let term : named_tm t =
         <?> "deref assignment"
       in
 
-      let exp1 = assign <|> deref_assign <|> exp2 in
+      let annotated = mk_annotated <$> exp2 <* syntax ":" <*> type_ in
 
-      let exp0 =
-        fix (fun exp0 ->
+      let exp1 = annotated <|> exp2 in
+
+      let exp0 = assign <|> deref_assign <|> exp1 in
+
+      let exp =
+        fix (fun exp ->
             let lambda =
               mk_lam
               <$> (syntax "\\" <|> syntax "λ") *> ident
-              <* char '.' <* space <*> exp0 <?> "lambda abstraction"
+              <* char '.' <* space <*> exp <?> "lambda abstraction"
             in
             let if_then_else =
               mk_if
-              <$> keyword "if" *> exp0
-              <*> keyword "then" *> exp0
-              <*> keyword "else" *> exp0
+              <$> keyword "if" *> exp
+              <*> keyword "then" *> exp
+              <*> keyword "else" *> exp
               <?> "if-then-else"
             in
             let let_in =
               mk_let
               <$> keyword "let" *> ident
-              <*> syntax "=" *> exp0
-              <*> keyword "in" *> exp0
+              <*> syntax "=" *> exp
+              <*> keyword "in" *> exp
               <?> "let-in"
             in
-            if_then_else <|> let_in <|> lambda <|> exp1)
+            if_then_else <|> let_in <|> lambda <|> exp0)
       in
-      let annotated = mk_annotated <$> exp0 <* syntax ":" <*> type_ in
-      let exp = annotated <|> exp0 in
+      let exp = annotated <|> exp in
       exp <?> "term")
 
 let parse p input = parse_string ~consume:All p (String.trim input)
