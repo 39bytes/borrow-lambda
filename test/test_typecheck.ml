@@ -42,6 +42,17 @@ let should_pass =
              let z = y &k in 
              unit |}
     );
+    ( "polymorphic lifetime forwarding",
+      fun () ->
+        Passes.typecheck
+          {| let y = (\x. 
+               let y2 = (\y. y) : &'b nat -> &'b nat in
+               y2 x
+             ) : &'a nat -> &'a nat in 
+             let k = succ (succ 0) in 
+             let z = y &k in 
+             unit |}
+    );
   ]
   |> List.map Utils.check_pass |> List.map Utils.make_test
 
