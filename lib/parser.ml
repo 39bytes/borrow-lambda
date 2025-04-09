@@ -30,11 +30,11 @@ let keywords =
     "false";
     "iszero";
     "unit";
-    "nat_vec_make";
-    "nat_vec_get";
-    "nat_vec_get_mut";
-    "nat_vec_push";
-    "nat_vec_pop";
+    "natvec_make";
+    "natvec_get";
+    "natvec_get_mut";
+    "natvec_push";
+    "natvec_pop";
   ]
 
 let space =

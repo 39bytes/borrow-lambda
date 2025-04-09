@@ -160,6 +160,5 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
   | NatVecPop t, _ -> borrow_check_rec ctx t
   | Annotated (_, _), _ ->
       failwith "should not have annotated term at borrow check pass"
-  | _ -> failwith "not implemented"
 
 let borrow_check = borrow_check_rec empty_context
