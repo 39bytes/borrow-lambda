@@ -1,8 +1,6 @@
-struct A(u32);
-
 fn main() {
-    let a = vec![1, 2, 3];
-    let b = &a;
-    let c = *b;
-    println!("{}", b[0]);
+    let mut nums = vec![1, 2, 3];
+    let num = &nums[2];
+    nums.push(4);
+    println!("{}", *num);
 }
