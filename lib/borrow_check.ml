@@ -7,6 +7,7 @@ exception BorrowError of string
 module IntSet = Set.Make (Int)
 
 type context = {
+  vars : var_id list;
   (* Delta *)
   used : IntSet.t;
   (* F *)
@@ -16,7 +17,7 @@ type context = {
 }
 
 let empty_context =
-  { used = IntSet.empty; bound_in_fn = IntSet.empty; borrowed = [] }
+  { vars = []; used = IntSet.empty; bound_in_fn = IntSet.empty; borrowed = [] }
 
 let fail_borrow_move x =
   let msg = Printf.sprintf "Cannot move variable '%s' while it is borrowed" x in
@@ -52,7 +53,9 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
      but does &'n T count as a subtype of &'a T?
   *)
   | Lam ((_, id), body), _ ->
-      borrow_check_rec { ctx with bound_in_fn = IntSet.of_list [ id ] } body
+      borrow_check_rec
+        { ctx with vars = id :: ctx.vars; bound_in_fn = IntSet.of_list [ id ] }
+        body
   | App (t1, t2), _ ->
       let ctx1 = borrow_check_rec ctx t1 in
       borrow_check_rec ctx1 t2
@@ -109,11 +112,24 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
       let ctx2 = borrow_check_rec ctx1 t2 in
       let ctx3 = borrow_check_rec ctx1 t3 in
       { ctx1 with used = IntSet.union ctx2.used ctx3.used }
-  | LetIn ((_, id), t1, t2), _ ->
+  | LetIn ((_, id), t1, t2), tp -> (
       let ctx1 = borrow_check_rec ctx t1 in
-      borrow_check_rec
-        { ctx1 with bound_in_fn = IntSet.add id ctx1.bound_in_fn }
-        t2
+      let ctx2 =
+        borrow_check_rec
+          {
+            ctx1 with
+            vars = id :: ctx1.vars;
+            bound_in_fn = IntSet.add id ctx1.bound_in_fn;
+          }
+          t2
+      in
+      match tp with
+      | Ref (Scope a, _, _) when a >= List.length ctx1.vars ->
+          raise
+            (BorrowError
+               "Cannot return reference because it does not live long enough")
+      (* scope ended, so the borrowed variables are the same as when we came in*)
+      | _ -> { ctx2 with borrowed = ctx.borrowed })
   | Assign ((name, id), t), _ ->
       if is_borrowed ctx id then
         raise
@@ -123,6 +139,7 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
         let ctx' = borrow_check_rec ctx t in
         (* x has a value again, so we can use it once more *)
         { ctx' with used = IntSet.remove id ctx'.used }
+  | DerefAssign ((_, _), t), _ -> borrow_check_rec ctx t
   | Zero, _ -> ctx
   | Succ t, _ -> borrow_check_rec ctx t
   | Pred t, _ -> borrow_check_rec ctx t
@@ -130,6 +147,17 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
   | False, _ -> ctx
   | IsZero t, _ -> borrow_check_rec ctx t
   | UnitTerm, _ -> ctx
+  | NatVecMake ts, _ -> List.fold_left borrow_check_rec ctx ts
+  | NatVecGet (t1, t2), _ ->
+      let ctx1 = borrow_check_rec ctx t1 in
+      borrow_check_rec ctx1 t2
+  | NatVecGetMut (t1, t2), _ ->
+      let ctx1 = borrow_check_rec ctx t1 in
+      borrow_check_rec ctx1 t2
+  | NatVecPush (t1, t2), _ ->
+      let ctx1 = borrow_check_rec ctx t1 in
+      borrow_check_rec ctx1 t2
+  | NatVecPop t, _ -> borrow_check_rec ctx t
   | Annotated (_, _), _ ->
       failwith "should not have annotated term at borrow check pass"
   | _ -> failwith "not implemented"
