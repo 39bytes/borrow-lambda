@@ -20,9 +20,10 @@ let rec subtype (t1 : tp) (t2 : tp) =
   match (t1, t2) with
   | Ref (alpha, tp1, mod1), Ref (beta, tp2, mod2) -> (
       let compatible_lifetimes =
-        (* TODO: disallow mixing lifetime variables *)
         match (alpha, beta) with
         | Scope x, Scope y -> x <= y
+        | LifetimeVar a, LifetimeVar b when a <> b -> false
+        | Scope _, LifetimeVar _ -> false
         | _ -> true
       in
       if not compatible_lifetimes then false
@@ -36,6 +37,12 @@ let rec subtype (t1 : tp) (t2 : tp) =
   | _, _ -> t1 = t2
 
 let ( <: ) = subtype
+
+let subst_lifetime_vars (tp : tp) (lft_var : string) (lft : lifetime) =
+  match tp with
+  | Ref (LifetimeVar x, ref_tp, ref_mod) when x = lft_var ->
+      Ref (lft, ref_tp, ref_mod)
+  | _ -> tp
 
 (* Exception helpers *)
 let fail_tp msg = raise (TypeError msg)
@@ -70,9 +77,23 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
   | App (t1, t2), _ -> (
       let tagged_fun = syn ctx t1 in
       match tag tagged_fun with
-      | Arrow (tp1, tp2) ->
-          let tagged_arg = check ctx t2 tp1 in
-          (App (tagged_fun, tagged_arg), tp2)
+      | Arrow (tp1, tp2) -> (
+          match tp1 with
+          (* If the parameter contains a lifetime variable, then we want to instantiate
+             it with whatever the argument that it was called with is.
+             So we first check the argument against a reference to extract the 
+             actual concrete lifetime, then perform the substitution against the return type.
+          *)
+          | Ref (LifetimeVar alpha, ref_tp, ref_mod) -> (
+              let tagged_arg = check ctx t2 (Ref (Any, ref_tp, ref_mod)) in
+              match tag tagged_arg with
+              | Ref (lft, _, _) ->
+                  let ret_tp = subst_lifetime_vars tp2 alpha lft in
+                  (App (tagged_fun, tagged_arg), ret_tp)
+              | _ -> failwith "impossible")
+          | _ ->
+              let tagged_arg = check ctx t2 tp1 in
+              (App (tagged_fun, tagged_arg), tp2))
       | _ -> fail_tp "Expected function type on left hand side of application")
   | Borrow t, _ -> (
       match t with
@@ -112,10 +133,10 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
       raise
         (TypeAnnotationRequired
            "Could not infer type of if/else, type annotation required")
-  | LetIn _, _ ->
-      raise
-        (TypeAnnotationRequired
-           "Could not infer type of let/in, type annotation required")
+  | LetIn ((name, id), t1, t2), _ ->
+      let tagged_t1 = syn ctx t1 in
+      let tagged_t2 = syn (add_to_context ctx id (tag tagged_t1)) t2 in
+      (LetIn ((name, id), tagged_t1, tagged_t2), tag tagged_t2)
   | Zero, _ -> (Zero, Nat)
   | Succ t, _ -> (Succ (check ctx t Nat), Nat)
   | Pred t, _ -> (Pred (check ctx t Nat), Nat)
@@ -165,10 +186,6 @@ and check (ctx : context) (tm : unit tm) (tp : tp) : tp tm =
       let tagged_t2 = check ctx t2 tp in
       let tagged_t3 = check ctx t3 tp in
       (IfElse (tagged_t1, tagged_t2, tagged_t3), tp)
-  | LetIn ((name, id), t1, t2), _ ->
-      let tagged_t1 = syn ctx t1 in
-      let tagged_t2 = check (add_to_context ctx id (tag tagged_t1)) t2 tp in
-      (LetIn ((name, id), tagged_t1, tagged_t2), tag tagged_t2)
   | Annotated (t, anno_tp), _ ->
       if tp <> anno_tp then fail_expected_tp tp anno_tp else check ctx t tp
   | _ ->
