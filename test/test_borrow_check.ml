@@ -42,6 +42,18 @@ let should_pass =
         a
       |}
     );
+    ( "can pop from natvec multiple times 2",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = natvec_make(0, succ 0, succ (succ 0)) in
+        let r = &mut x in
+        let a = natvec_pop(r) in
+        let b = natvec_pop(&mut x) in
+        let c = natvec_pop(&mut x) in
+        a
+      |}
+    );
   ]
   |> List.map Utils.check_pass |> List.map Utils.make_test
 
@@ -56,6 +68,38 @@ let should_fail =
         let y = x in
         let z = x in
         unit
+      |}
+    );
+    ( "can't use a natvec more than once when used conditionally",
+      Borrow_check.MovedValue "Use of moved value 'x'",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = natvec_make(0, succ 0, succ (succ 0)) in
+        let y = (if true then x else natvec_make(0)) : natvec in
+        let z = x in
+        unit
+      |}
+    );
+    ( "move into closure",
+      Borrow_check.MovedValue "Use of moved value 'x'",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = natvec_make(0, succ 0, succ (succ 0)) in
+        let y = (\v. x) : unit -> natvec in
+        let z = x in
+        unit
+      |}
+    );
+    ( "no captured borrows",
+      Borrow_check.BorrowError "Cannot borrow captured variable 'x'",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = 0 in
+        let y = (\v. let z = &x in v) : unit -> unit in
+        y
       |}
     );
     ( "can't use a mutable reference more than once",

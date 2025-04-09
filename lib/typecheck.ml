@@ -189,6 +189,10 @@ and check (ctx : context) (tm : unit tm) (tp : tp) : tp tm =
       let tagged_t2 = check ctx t2 tp in
       let tagged_t3 = check ctx t3 tp in
       (IfElse (tagged_t1, tagged_t2, tagged_t3), tp)
+  | LetIn ((name, id), t1, t2), _ ->
+      let tagged_t1 = syn ctx t1 in
+      let tagged_t2 = check (add_to_context ctx id (tag tagged_t1)) t2 tp in
+      (LetIn ((name, id), tagged_t1, tagged_t2), tag tagged_t2)
   | Annotated (t, anno_tp), _ ->
       if tp <> anno_tp then fail_expected_tp tp anno_tp else check ctx t tp
   | _ ->
