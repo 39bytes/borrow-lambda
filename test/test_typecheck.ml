@@ -20,17 +20,27 @@ let should_pass =
         Passes.typecheck {| (\x. if iszero x then succ 0 else x) : nat -> nat |}
     );
     ( "let/in",
-      fun () ->
-        Passes.typecheck {| (let x = iszero (succ 0) in let y = 0 in y) : nat |}
+      fun () -> Passes.typecheck {| let x = iszero (succ 0) in let y = 0 in y |}
     );
     ( "borrowing bound variables",
-      fun () ->
-        Passes.typecheck {| (let x = succ 0 in let y = &x in y) : &'a nat |} );
+      fun () -> Passes.typecheck {| let x = succ 0 in let y = &x in unit  |} );
     ( "can reassign a mutable reference to an immutable one with a smaller \
        lifetime",
       fun () ->
         Passes.typecheck
-          {| let x = succ 0 in let y = 0 in let z = &y in z := &mut x : unit |}
+          {| let x = succ 0 in 
+             let y = 0 in 
+             let z = &y in 
+             z := &mut x |}
+    );
+    ( "polymorphic lifetime instantiation",
+      fun () ->
+        Passes.typecheck
+          {| let x = succ 0 in 
+             let y = (\x. x) : &'a nat -> &'a nat in 
+             let k = succ (succ 0) in 
+             let z = y &k in 
+             unit |}
     );
   ]
   |> List.map Utils.check_pass |> List.map Utils.make_test
@@ -48,7 +58,16 @@ let should_fail =
       Typecheck.TypeError "Expected type '&'0 nat', got type '&'2 nat'",
       fun () ->
         Passes.typecheck
-          {| let x = succ 0 in let y = &x in let z = 0 in y := &z : &'a nat |}
+          {| let x = succ 0 in let y = &x in let z = 0 in y := &z  |} );
+    ( "can't return a reference out that's bound in the function",
+      Typecheck.TypeError "Expected type '&'a nat', got type '&'2 nat'",
+      fun () ->
+        Passes.typecheck
+          {| let x = succ 0 in 
+             let y = (\x. let y = 0 in &y) : &'a nat -> &'a nat in 
+             let k = succ (succ 0) in 
+             let z = y &k in 
+             unit |}
     );
   ]
   |> List.map check_fail |> List.map Utils.make_test
