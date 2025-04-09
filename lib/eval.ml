@@ -70,9 +70,9 @@ let eval (tm : tp tm) : value =
         let v = go t in
         write_value id None v;
         VUnit
-    | DerefAssign ((_, _), t) -> (
+    | DerefAssign ((_, id), t) -> (
         let v = go t in
-        match v with
+        match lookup id None with
         | VRef (id, offset) ->
             write_value id offset v;
             VUnit

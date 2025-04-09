@@ -41,7 +41,7 @@ let space =
   skip_while (function ' ' | '\t' | '\n' | '\r' -> true | _ -> false)
 
 let ident_like =
-  satisfy is_alpha >>= fun c ->
+  satisfy is_ident_char_start >>= fun c ->
   many (satisfy is_ident_char) >>= fun cs ->
   return (make_string (c :: cs)) <* space
 
@@ -164,19 +164,19 @@ let term : named_tm t =
 
       let exp2 = borrow <|> borrow_mut <|> deref <|> exp3 in
 
+      let annotated = mk_annotated <$> exp2 <* syntax ":" <*> type_ in
+
+      let exp1 = annotated <|> exp2 in
+
       let assign =
-        mk_assign <$> ident <*> syntax ":=" *> exp2 <?> "assignment"
+        mk_assign <$> ident <*> syntax ":=" *> exp1 <?> "assignment"
       in
       let deref_assign =
         mk_deref_assign
         <$> char '*' *> ident
-        <*> syntax ":=" *> exp2
+        <*> syntax ":=" *> exp1
         <?> "deref assignment"
       in
-
-      let annotated = mk_annotated <$> exp2 <* syntax ":" <*> type_ in
-
-      let exp1 = annotated <|> exp2 in
 
       let exp0 = assign <|> deref_assign <|> exp1 in
 
