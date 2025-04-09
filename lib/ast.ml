@@ -7,7 +7,7 @@ type tp =
   | Bool
   | Unit
   | Arrow of tp * tp
-  | Ref of lifetime * tp * ref_mod
+  | Ref of (lifetime * tp * ref_mod * var_id option)
   | NatVec
 
 type named_tm =
@@ -75,8 +75,8 @@ let rec string_of_tp = function
   | Unit -> "unit"
   | Arrow (t1, t2) ->
       Printf.sprintf "%s -> %s" (string_of_tp t1) (string_of_tp t2)
-  | Ref (lft, t, Shr) ->
+  | Ref (lft, t, Shr, _) ->
       Printf.sprintf "&%s %s" (string_of_lifetime lft) (string_of_tp t)
-  | Ref (lft, t, Mut) ->
+  | Ref (lft, t, Mut, _) ->
       Printf.sprintf "&%s mut %s" (string_of_lifetime lft) (string_of_tp t)
   | NatVec -> "natvec"

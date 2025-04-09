@@ -20,21 +20,25 @@ let borrow_check ast =
   | Borrow_check.BorrowedValue msg -> Error ("Borrow error: " ^ msg)
   | Borrow_check.MovedValue msg -> Error ("Move error: " ^ msg)
 
-let run (input : string) : (unit, string) result =
+let eval ast =
+  try Ok (Eval.eval ast)
+  with Eval.RuntimeError msg -> Error ("Runtime error: " ^ msg)
+
+let run (input : string) : (Eval.value, string) result =
   let ( let* ) = Result.bind in
   let* ast = parse input in
   let* renamed = rename ast in
   let* typed = typecheck renamed in
   let* _ = borrow_check typed in
-  (* TODO: eval *)
-  Ok ()
+  let* v = eval typed in
+  Ok v
 
 let rec repl () =
   let () = print_string prompt in
   let s = read_line () in
   let () =
     match run s with
-    | Ok () -> print_endline "ok."
+    | Ok v -> print_endline (Eval.string_of_value v)
     | Error msg -> print_endline msg
   in
   repl ()

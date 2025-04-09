@@ -18,7 +18,7 @@ let rec print_context (ctx : context) =
 
 let rec subtype (t1 : tp) (t2 : tp) =
   match (t1, t2) with
-  | Ref (alpha, tp1, mod1), Ref (beta, tp2, mod2) -> (
+  | Ref (alpha, tp1, mod1, _), Ref (beta, tp2, mod2, _) -> (
       let compatible_lifetimes =
         match (alpha, beta) with
         | Scope x, Scope y -> x <= y
@@ -38,10 +38,11 @@ let rec subtype (t1 : tp) (t2 : tp) =
 
 let ( <: ) = subtype
 
-let subst_lifetime_vars (tp : tp) (lft_var : string) (lft : lifetime) =
+let subst_lifetime_vars (tp : tp) (lft_var : string) (lft : lifetime)
+    (borrow_id : var_id option) =
   match tp with
-  | Ref (LifetimeVar x, ref_tp, ref_mod) when x = lft_var ->
-      Ref (lft, ref_tp, ref_mod)
+  | Ref (LifetimeVar x, ref_tp, ref_mod, _) when x = lft_var ->
+      Ref (lft, ref_tp, ref_mod, borrow_id)
   | _ -> tp
 
 (* Exception helpers *)
@@ -84,11 +85,13 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
              So we first check the argument against a reference to extract the 
              actual concrete lifetime, then perform the substitution against the return type.
           *)
-          | Ref (LifetimeVar alpha, ref_tp, ref_mod) -> (
-              let tagged_arg = check ctx t2 (Ref (Any, ref_tp, ref_mod)) in
+          | Ref (LifetimeVar alpha, ref_tp, ref_mod, _) -> (
+              let tagged_arg =
+                check ctx t2 (Ref (Any, ref_tp, ref_mod, None))
+              in
               match tag tagged_arg with
-              | Ref (lft, _, _) ->
-                  let ret_tp = subst_lifetime_vars tp2 alpha lft in
+              | Ref (lft, _, _, var_id) ->
+                  let ret_tp = subst_lifetime_vars tp2 alpha lft var_id in
                   (App (tagged_fun, tagged_arg), ret_tp)
               | _ -> failwith "impossible")
           | _ ->
@@ -100,19 +103,19 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
       | Var (name, id), _ ->
           let tp, lft = find_in_context ctx id in
           let tagged_var = (Var (name, id), tp) in
-          (Borrow tagged_var, Ref (lft, tp, Shr))
+          (Borrow tagged_var, Ref (lft, tp, Shr, Some id))
       | _ -> raise (TypeError "Cannot borrow non-variable term"))
   | BorrowMut t, _ -> (
       match t with
       | Var (name, id), _ ->
           let tp, lft = find_in_context ctx id in
           let tagged_var = (Var (name, id), tp) in
-          (BorrowMut tagged_var, Ref (lft, tp, Mut))
+          (BorrowMut tagged_var, Ref (lft, tp, Mut, Some id))
       | _ -> raise (TypeError "Cannot borrow non-variable term"))
   | Deref t, _ -> (
       let tagged_t = syn ctx t in
       match tag tagged_t with
-      | Ref (_, ref_tp, _) -> (Deref tagged_t, ref_tp)
+      | Ref (_, ref_tp, _, _) -> (Deref tagged_t, ref_tp)
       | _ ->
           raise
             (TypeError
@@ -125,7 +128,7 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
   | DerefAssign ((name, id), t), _ -> (
       let tp, _ = find_in_context ctx id in
       match tp with
-      | Ref (_, ref_tp, Mut) ->
+      | Ref (_, ref_tp, Mut, _) ->
           let tagged_rhs = check ctx t ref_tp in
           (DerefAssign ((name, id), tagged_rhs), Unit)
       | _ -> raise (TypeError "Cannot assign to non-mutable reference type"))
@@ -148,25 +151,25 @@ let rec syn (ctx : context) (tm : unit tm) : tp tm =
       let args = List.map (fun t -> check ctx t Nat) ts in
       (NatVecMake args, NatVec)
   | NatVecGet (t1, t2), _ -> (
-      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Shr)) in
+      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Shr, None)) in
       match tag tagged_vec with
-      | Ref (lft, _, _) ->
+      | Ref (lft, _, _, var_id) ->
           let tagged_index = check ctx t2 Nat in
-          (NatVecGet (tagged_vec, tagged_index), Ref (lft, Nat, Shr))
+          (NatVecGet (tagged_vec, tagged_index), Ref (lft, Nat, Shr, var_id))
       | _ -> failwith "impossible")
   | NatVecGetMut (t1, t2), _ -> (
-      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Mut)) in
+      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Mut, None)) in
       match tag tagged_vec with
-      | Ref (lft, _, _) ->
+      | Ref (lft, _, _, var_id) ->
           let tagged_index = check ctx t2 Nat in
-          (NatVecGetMut (tagged_vec, tagged_index), Ref (lft, Nat, Mut))
+          (NatVecGetMut (tagged_vec, tagged_index), Ref (lft, Nat, Mut, var_id))
       | _ -> failwith "impossible")
   | NatVecPush (t1, t2), _ ->
-      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Mut)) in
+      let tagged_vec = check ctx t1 (Ref (Any, NatVec, Mut, None)) in
       let tagged_val = check ctx t2 Nat in
       (NatVecPush (tagged_vec, tagged_val), Unit)
   | NatVecPop t, _ ->
-      let tagged_vec = check ctx t (Ref (Any, NatVec, Mut)) in
+      let tagged_vec = check ctx t (Ref (Any, NatVec, Mut, None)) in
       (NatVecPop tagged_vec, Nat)
   | Annotated (t, tp), _ -> check ctx t tp
 

@@ -3,6 +3,25 @@ open Utils
 
 let should_pass =
   [
+    ( "can use basic types more than once",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let a = 0 in
+        let b = a in
+        let c = a in
+        let d = true in
+        let e = d in
+        let f = d in
+        let g = unit in
+        let h = g in
+        let i = g in
+        let j = &g in
+        let k = j in
+        let l = j in
+        unit
+      |}
+    );
     ( "can return a reference that lives long enough",
       fun () ->
         Passes.borrow_check
@@ -28,6 +47,29 @@ let should_pass =
 
 let should_fail =
   [
+    ( "can't use a natvec more than once",
+      Borrow_check.MovedValue "Use of moved value 'x'",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = natvec_make(0, succ 0, succ (succ 0)) in
+        let y = x in
+        let z = x in
+        unit
+      |}
+    );
+    ( "can't use a mutable reference more than once",
+      Borrow_check.MovedValue "Use of moved value 'y'",
+      fun () ->
+        Passes.borrow_check
+          {| 
+        let x = 0 in
+        let y = &mut x in
+        let z = y in
+        let a = y in
+        unit
+      |}
+    );
     ( "can't mutably borrow twice",
       Borrow_check.BorrowError
         "Cannot mutably borrow 'x' while it is already borrowed",

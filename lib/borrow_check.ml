@@ -28,7 +28,7 @@ let fail_moved_value x =
   raise (MovedValue msg)
 
 let copy : tp -> bool = function
-  | Nat | Bool | Unit | Ref (_, _, Shr) -> true
+  | Nat | Bool | Unit | Ref (_, _, Shr, _) -> true
   | _ -> false
 
 let bound_in_current (ctx : context) (x : var_id) : bool =
@@ -120,11 +120,19 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
             ctx1 with
             vars = id :: ctx1.vars;
             bound_in_fn = IntSet.add id ctx1.bound_in_fn;
+            (* all borrows that occur in the binding have ended by the time
+               we evaluate t2, UNLESS a reference is bound *)
+            borrowed =
+              (match tag t1 with
+              | Ref (_, _, ref_mod, Some var_id) ->
+                  (var_id, ref_mod) :: ctx.borrowed
+              | _ -> ctx.borrowed);
+            (* ctx.borrowed; *)
           }
           t2
       in
       match tp with
-      | Ref (Scope a, _, _) when a >= List.length ctx1.vars ->
+      | Ref (Scope a, _, _, _) when a >= List.length ctx1.vars ->
           raise
             (BorrowError
                "Cannot return reference because it does not live long enough")

@@ -6,6 +6,8 @@ module VarIdMap = Map.Make (struct
   let compare = compare
 end)
 
+exception RuntimeError of string
+
 type value =
   | VZero
   | VSucc of value
@@ -26,17 +28,31 @@ let nat_to_int (nat : value) : int =
   in
   go nat 0
 
+let rec string_of_value = function
+  | VZero -> "0"
+  | VSucc v -> "succ (" ^ string_of_value v ^ ")"
+  | VTrue -> "true"
+  | VFalse -> "false"
+  | VUnit -> "unit"
+  | VRef _ -> "<reference>"
+  | VNatVec vec ->
+      "["
+      ^ (vec |> Dynarray.to_list |> List.map string_of_value
+       |> String.concat ", ")
+      ^ "]"
+  | VLam _ -> "<fun>"
+
 let eval (tm : tp tm) : value =
-  let env = ref VarIdMap.empty in
+  let env = Hashtbl.create 8 in
   let lookup id offset =
-    match (VarIdMap.find id !env, offset) with
+    match (Hashtbl.find env id, offset) with
     | VNatVec ns, Some offset -> Dynarray.get ns offset
     | v, _ -> v
   in
   let write_value id offset v =
-    match (VarIdMap.find id !env, offset) with
-    | VNatVec ns, Some offset -> Dynarray.set ns offset v
-    | _, _ -> env := VarIdMap.add id v !env
+    match (Hashtbl.find_opt env id, offset) with
+    | Some (VNatVec ns), Some offset -> Dynarray.set ns offset v
+    | _, _ -> Hashtbl.replace env id v
   in
   let rec go (tm : tp tm) : value =
     match fst tm with
@@ -99,11 +115,12 @@ let eval (tm : tp tm) : value =
         VNatVec arr
     | NatVecGet (t1, t2) | NatVecGetMut (t1, t2) -> (
         let vec_ref = go t1 in
-        let idx = go t2 in
+        let idx = nat_to_int (go t2) in
         match vec_ref with
         | VRef (id, _) -> (
             match lookup id None with
-            | VNatVec _ -> VRef (id, Some (nat_to_int idx))
+            | VNatVec ns when idx < Dynarray.length ns -> VRef (id, Some idx)
+            | VNatVec _ -> raise (RuntimeError "Index out of bounds")
             | _ -> failwith "impossible")
         | _ -> failwith "impossible")
     | NatVecPush (t1, t2) -> (
@@ -122,20 +139,11 @@ let eval (tm : tp tm) : value =
         match vec_ref with
         | VRef (id, _) -> (
             match lookup id None with
+            | VNatVec vs when Dynarray.is_empty vs ->
+                raise (RuntimeError "Pop from empty natvec")
             | VNatVec vs -> Dynarray.pop_last vs
             | _ -> failwith "impossible")
         | _ -> failwith "impossible")
     | _ -> failwith "not implemented"
   in
   go tm
-
-(* | NatVecMake tms -> VNatVec (List.map (eval env) tms) *)
-(* | NatVecGet (t1, t2) | NatVecGetMut (t1, t2) -> ( *)
-(*     let vec = eval env t1 in *)
-(*     let idx = eval env t2 in *)
-(*   match vec with VRef id ->  *)
-(*       match VarIdMap.find id env with  *)
-(*       | VNatVec vs -> List.nth  *)
-(**)
-(*     match vec with VNatVec vs -> List.nth vs (nat_to_int idx)) *)
-(* | Annotated (t, _) -> eval env t *)

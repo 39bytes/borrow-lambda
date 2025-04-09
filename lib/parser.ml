@@ -66,7 +66,7 @@ let parens p = syntax "(" *> p <* syntax ")"
 let mk_lifetime_var name = LifetimeVar name
 let lifetime : lifetime t = mk_lifetime_var <$> syntax "'" *> ident
 let mk_arrow t1 t2 = Arrow (t1, t2)
-let mk_ref lft ref_mod tp = Ref (lft, tp, ref_mod)
+let mk_ref lft ref_mod tp = Ref (lft, tp, ref_mod, None)
 
 let type_ : tp t =
   fix (fun type_ ->
