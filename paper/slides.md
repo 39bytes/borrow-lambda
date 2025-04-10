@@ -82,8 +82,41 @@ For more information about this error, try `rustc --explain E0502`.
 
 <!-- end_slide -->
 
+Why borrow checking? (motivation)
+===
+
+Manual memory management (like in C) is performant, but very error prone. We use automatic memory management strategies to make programming easier.
+
+<!-- pause -->
+
+- Garbage Collection
+    - A second procedure whose job is to find unreachable values, and free their memory.
+    - Different strategies, each with pros and cons (ref cycles, fragmentation).
+    - Bottom line: we compromise performance for memory safety.
+
+<!-- pause -->
+
+- Borrow Checking
+    - A set of rules enforced during compile time that prevent common memory errors from being able to happen.
+        - dangling pointer
+        - use after free
+        - double free
+        - null dereference
+    - We can ensure our code is memory safe, without the runtime overhead of a garbage collector!
+
+<!-- end_slide -->
+
 Why borrow checking? (background)
 ===
+# Cyclone
+- A research language from the early 2000s that was designed to provide memory safety to C.
+- Main goal was to prevent vulnerabilities in C code (buffer overflow, incorrect typecasts, null pointer dereference) by attacking the semantics of the language itself.
+- Introduces Regions to C: areas (scopes) where objects live and are deallocated simultaneously.
+    - Region subtyping / "outlives" relation.
+    - Prevents errors like null pointer dereferencing at compile time.
+- A basis for Lifetimes, an important feature of the Rust borrow checker.
+- Now a discontinued project, but many of Cyclone's features have been ported over to Rust.
+- Region-Based Memory Management in Cyclone" (Grossman et al. 2002)
 
 <!-- end_slide -->
 
