@@ -47,11 +47,6 @@ let rec borrow_check_rec (ctx : context) (tm : tp tm) : context =
       else if is_borrowed ctx id then fail_borrow_move name
       else if IntSet.exists (( = ) id) ctx.used then fail_moved_value name
       else { ctx with used = IntSet.add id ctx.used }
-  (* TODO: check references
-     should be pretty easy..., does it have to be a separate case even?
-     the only possible return type for a reference is with a lifetime variable,
-     but does &'n T count as a subtype of &'a T?
-  *)
   | Lam ((_, id), body), _ ->
       borrow_check_rec
         { ctx with vars = id :: ctx.vars; bound_in_fn = IntSet.of_list [ id ] }

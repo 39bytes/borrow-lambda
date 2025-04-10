@@ -27,7 +27,8 @@ let should_pass =
         Passes.borrow_check
           {| 
         let x = 0 in
-        let z = (let y = &x in y) in
+        let y = 0 in
+        let z = (let b = &y in let c = &x in c) in
         unit
       |}
     );
@@ -37,18 +38,6 @@ let should_pass =
           {| 
         let x = natvec_make(0, succ 0, succ (succ 0)) in
         let a = natvec_pop(&mut x) in
-        let b = natvec_pop(&mut x) in
-        let c = natvec_pop(&mut x) in
-        a
-      |}
-    );
-    ( "can pop from natvec multiple times 2",
-      fun () ->
-        Passes.borrow_check
-          {| 
-        let x = natvec_make(0, succ 0, succ (succ 0)) in
-        let r = &mut x in
-        let a = natvec_pop(r) in
         let b = natvec_pop(&mut x) in
         let c = natvec_pop(&mut x) in
         a

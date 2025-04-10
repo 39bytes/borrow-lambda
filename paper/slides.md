@@ -6,6 +6,10 @@ authors:
     - Taran Dwivedula
 theme:
     name: catppuccin-mocha
+    # typst:
+    #     colors:
+    #         background: "ff0000"
+
 ---
 
 Consider the following C++ code
@@ -106,7 +110,9 @@ Manual memory management (like in C) is performant, but very error prone. We use
     - double free
 - With these restrictions, the compiler is able to insert all required calls to malloc/free for you!
 - We can ensure our code is memory safe, without the runtime overhead of a garbage collector.
-- Sidenote: It can be hard sometimes to convince the compiler your code is safe...
+
+> [!WARNING] Sidenote
+> It can be hard sometimes to convince the compiler your code is safe...
 
 <!-- column: 1 -->
 
@@ -257,10 +263,10 @@ But copying every value that we want to use more than once isn't practical. How 
 
 Borrowing
 ===
-- Letting someone else use one of our values by giving a reference. 
-    - Key: we still maintain ownership.
-- References are by default immutable; the value can be viewed but not changed.
-- References can alternatively be created as mutable.
+> [!Tip] Idea
+> Letting someone else use one of our values by giving a reference. 
+>   - Key: we still maintain ownership.
+> References can be immutable (the value can be viewed but not changed) or mutable.
 
 <!-- pause -->
 
@@ -268,13 +274,17 @@ Safety is maintained by permitting references under the following condition.
 
 <!-- pause -->
 
-> At any given time, a value can have either one mutable reference pointing to it, or any amount of immutable references pointing to it, but not both. Additionally, a value can't be mutated while **any** references to it are in scope (except through the mutable reference if one exists).
+> [!Important] Aliasing rule
+> At any given time, a value can have either one mutable reference pointing to it, or any amount of immutable references pointing to it, but not both. Additionally, the owner cannot mutate or give up ownership of a value while **any** references to it are in scope.
+
+<!-- pause -->
 
 This ensures: 
 - Only one object has the right to mutate a value at a time.
 - Objects will not be mutated while they are being read from.
 
 In other words, **no mutable aliasing**.
+- Solves the C++ footgun shown at the beginning of the presentation!
 
 <!-- end_slide -->
 
@@ -286,12 +296,17 @@ Lifetimes
 - Values are freed ("dropped") when their owner goes out of scope.
 - Lifetimes ≈ Scopes
 
+<!-- pause -->
+
 When a variable is borrowed, then the reference is tagged with the lifetime of the lender.
 - References follow a subtyping relation over lifetimes. `&'a T <: &'b T` if the lifetime `'a` is larger than lifetime `'b` (the scope is larger)
 
+<!-- pause -->
+
 All borrows must end before the lender is dropped. This ensure no dangling pointers!
 
-Examples adapted from Rust by Example
+<!-- pause -->
+
 ```rust
 fn main() {
     let a = 0; // <-- Lifetime of a begins
@@ -325,6 +340,8 @@ fn main() {
 }
 ```
 
+<!-- pause -->
+
 Functions (polymorphic over lifetimes)
 ```rust
 fn main() {
@@ -346,23 +363,6 @@ Implementation
 ===
 We implement a borrow checker on a small extension of the simply typed lambda calculus. 
 
-In addition to the usual Unit and function types, we have `Nat` and `Bool` for primitive (copyable) types, and `NatVec`, a vector of Nats, as an example of a more complex data structure. Additionally, we have reference types which are annotated with their lifetime, their mutability, and the type which they are referring to.
-
-Syntactically, we add references (both immutable and mutable), a dereference operator, `let in` expressions, variable assignment, and operations for creating a `NatVec`, as well as pushing, popping, and getting a reference to an element.
-
-# Typechecker
-Our typechecker runs in two main phases: the type checker, and the borrow checker.
-
-## Typechecking Pass
-- Checks that terms are well-typed.
-- Annotates AST nodes with their types.
-- Checks the subtype relation of lifetimes.
-## Borrow Checking Pass
-- Checks that usages are valid.
-- Checks the affine type property (no value is used more than once).
-- Checks that values can't be moved or mutated while being borrowed.
-- Checks that active references obey the mutability rules.
-
 <!-- column_layout: [1, 1] -->
 
 <!-- pause -->
@@ -381,19 +381,115 @@ Our typechecker runs in two main phases: the type checker, and the borrow checke
 
 <!-- reset_layout -->
 
+Small note: all variables are mutable
+
 <!-- end_slide -->
 
-Challenges
+Implementation (cont.)
 ===
-- Closures (capturing?)
 
-- Ending borrows properly (had to attach a variable information to the ref type itself)
+# Typechecking Pass
 
-- Shadowing (assign each variable a unique id)
+Relatively simple bidirectional typechecking.
 
-- Lifetime polymorphism
+1. Checks that terms are well-typed, and annotates AST nodes with their types.
 
-- Escaping references
+<!-- pause -->
+
+2. Assigns lifetimes to each variables and their respective borrows (also ties borrows to their original owner)
+    - Pretty easy, each binding site is its own scope! (let/in and lambdas)
+    - Lifetimes are just represented with indices, smaller index = bigger lifetime
+```ocaml
+let a = 0 in        (* a has lifetime '0 *)
+let b = succ 0 in   (* b has lifetime '1 *)
+let c = (\d. d) in  (* c has lifetime '2 *)
+...
+```
+
+<!-- pause -->
+
+3. Checks the subtype relation of lifetimes.
+    - Easy, just compare indices
+    - When comparing against a lifetime variable, don't allow unless it's the same variable.
+
+<!-- pause -->
+
+4. Handles instantiation of functions polymorphic over lifetimes
+```ocaml
+let y = (\x. x) : &'a nat -> &'a nat in 
+let k = succ (succ 0) in (* k has lifetime '1 *)
+let z = y &k in          (* z has type &'1 nat*)
+...
+```
+
+<!-- end_slide -->
+
+Implementation (cont.)
+===
+
+## Borrow Checking Pass
+1. **Checks the affine type property (no value is used more than once)**
+    - Maintain a context that tracks variables usages (easy)
+    - If a value is trivially copyable, don't add it to that context
+    - For if expressions, need to take the union of the used variables in both branches
+    - Special case: when a value is moved out of a variable but then the variable is assigned another value, that variable can be used again.
+
+<!-- pause -->
+
+&nbsp;
+
+2. **Checks that values can't be moved or mutated while being borrowed.**
+3. **Checks that borrows obey the mutability rules**
+    - Maintain a context that tracks the borrows (implemented as a `(var_id * ref_mod) list`)
+    - Tricky: Properly ending borrows.
+
+```ocaml
+let x = 0 in 
+let y = 0 in 
+let z = (let a = &y in let b = &x in b) in 
+let d = &mut y in (* we can borrow y as mutable here, but not x*)
+...
+```
+
+- Solution: Track which reference borrows what variable.
+
+<!-- pause -->
+
+&nbsp;
+
+4. **Checks validity of references** (can't return an escaping reference out of a let/in or lambda)
+    - Uses the lifetime information from the typechecking step.
+    - Every scope has an index associated with it, 
+      just ensure the reference returned out has a larger lifetime (smaller index) than the scope
+
+
+<!-- end_slide -->
+
+Additional challenges
+===
+
+- Closures (capturing by borrow)
+    - We don't allow lambda abstractions to capture by borrow because it would require adding
+    a lifetime to the arrow type as well, which would make things a bit more complicated.
+    - Solution: Maintain a separate context for keeping track of which variables are bound in the
+    current function.
+
+&nbsp;
+
+<!-- pause -->
+
+- Shadowing 
+    - Variables need to be uniquely identifiable at all times because of the borrow contexts,
+    but shadowing is convenient.
+    - Solution: run a pass that assigns every variable in the entire program a unique id we can use internally
+```ocaml
+let fresh_var =
+  let n = ref 0 in
+  fun () ->
+    let x = !n in
+    n := !n + 1;
+    x
+```
 
 <!-- end_slide -->
 
