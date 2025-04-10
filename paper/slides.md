@@ -201,6 +201,23 @@ Lifetimes
 
 Implementation
 ===
+We implement a borrow checker on a small extension of the simply typed lambda calculus. 
+
+In addition to the usual Unit and function types, we have `Nat` and `Bool` for primitive (copyable) types, and `NatVec`, a vector of Nats, as an example of a more complex data structure. Additionally, we have reference types which are annotated with their lifetime, their mutability, and the type which they are referring to.
+
+Syntactically, we add references (both immutable and mutable), a dereference operator, `let in` expressions, variable assignment, and operations for creating a `NatVec`, as well as pushing, popping, and getting a reference to an element.
+
+# Typechecker
+Our typechecker runs in two main phases: the type checker, and the borrow checker.
+## Typechecking Pass
+- Checks that terms are well-typed.
+- Annotates AST nodes with their types.
+- Checks the subtype relation of lifetimes.
+## Borrow Checking Pass
+- Checks that usages are valid.
+- Checks the affine type property (no value is used more than once).
+- Checks that values can't be moved or mutated while being borrowed.
+- Checks that active references obey the mutability rules.
 
 <!-- end_slide -->
 
