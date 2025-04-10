@@ -147,10 +147,39 @@ Borrow checking overview
 
 Ownership
 ===
+# The Ownership Rules (taken from the Rust book)
+- Each value in Rust has an owner.
+- There can only be one owner at a time.
+- When the owner goes out of scope, the value will be dropped.
 
-- Rust's ownership is an implementation of something called an *affine type system*. What this means is that values can only be used at most once.
-- This is a particular instance of the more general concept of **substructural type systems**. (elaborate)
+What is this from a type theoretical perspective?
+<!-- pause -->
+Affine type system: values can be used at most once. Further, an affine type system is a particular instance of the more general **substructural type system.**
+# Substructural Type System
+Structural logic systems have 3 structural rules: Exchange, Weakening, and Contraction.
 
+Exchange: The order of two operations doesn't affect the outcome.
+```latex +render +width:30%
+$A,B\Rightarrow C\equiv B,A\Rightarrow C$
+```
+Weakening: The conclusion can be extended with additional elements.
+```latex +render +width:30%
+$A\Rightarrow B\equiv A\Rightarrow B,C$
+```
+Contraction: Equivalent elements on the same side can be contracted into one.
+```latex +render +width:30%
+$A,A\Rightarrow B\equiv A\Rightarrow B$
+```
+Substructural logic systems are logic systems which don't permit one or more of these rules. Affine systems in particular reject the Contraction rule.
+<!-- end_slide -->
+
+Ownership
+===
+# Correspondence
+- Move semantics: if a value can't be copied (the type doesn't permit copying), it is moved.
+- Passing a variable into a function *moves* that variable into that function, and gives it ownership of the variable. This means that function now handles the deallocation of that variable.
+<!-- pause -->
+But copying every value that we want to use more than once isn't practical. How do we get around this? -> Borrowing.
 <!-- end_slide -->
 
 Borrowing
