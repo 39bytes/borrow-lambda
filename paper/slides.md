@@ -184,7 +184,13 @@ But copying every value that we want to use more than once isn't practical. How 
 
 Borrowing
 ===
+- Letting someone else use one of our values by giving a reference. Key: we still maintain ownership.
+- References are by default immutable; the value can be viewed but not changed.
+- References can alternatively be created as mutable.
 
+Safety is maintained by permitting references under the following condition: At any given time, a value can have either one mutable reference pointing to it, or any amount of immutable references pointing to it, but not both. Additionally, a value can't be mutated while a mutable reference to it is in scope. This ensures:
+- Only one object has the right to mutate a value at a time.
+- Objects will not be mutated while they are being read from.
 <!-- end_slide -->
 
 Lifetimes
