@@ -12,6 +12,67 @@
 \newcommand{\E}{\mathcal{E}}
 \newcommand{\mtt}[1]{\mathtt{#1}}
 
+\title{borrow-lambda}
+\author{Taran Dwivedula, Jeff Zhang}
+
 \begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Borrow checking and ownership is a solution to many of the problems that commonly arise in programming languages with manual memory management like C.
+    Like the strategy of garbage collection implemented in several common general purpose programming languages, borrow checking eliminates the
+    need for programmers to manually allocate and free the memory their program uses, which is the source of many human errors in programming.
+    However, the need for high performance code makes garbage collection a sub-optimal solution, as garbage collection introduces performance
+    overheads, non-determinism, and potentially memory fragmentation. Borrow checking and ownership is an alternative that takes a different
+    approach - it relies on the strength of the programming language's typesystem. It is a set of rules that allows the compiler to
+    automatically determine where to allocate and free memory, both eliminating the need of a garbage collector and the need for a programmer
+    to manually allocate and free memory. In this paper, we discuss borrow checking as a solution to common memory errors, and provide
+    and implementation on a small extension of the simply-typed lambda calculus.
+\end{abstract}
+
+\section{Introduction}
+Systems-level programming mandates high performance code; that is, code that runs with minimal overhead, and uses memory efficiently. Minimizing
+fragmentation on the heap is essential, especially for servers and embedded systems. It's why a programming language like C has been very popular
+in this domain for decades. C is an abstraction directly from assembly that was
+designed to make code easier to read and write. As such, control of heap allocated
+memory remains fully with the programmer. The practice of writing good and safe code
+is left to the programmer - the idea being, a skilled programmer would be able to write
+memory safe code without mistakes, and just like assembly, mistakes would not result
+in errors - just undefined behaviour.
+
+Over time, we have seen that relying on programmers to be skilled enough to avoid
+making memory errors in their code is not feasible. When codebases become large scale,
+these errors become extremely hard to avoid. Computer viruses and exploits due to
+things like buffer overflows affect many people and are still present in a large
+amount of software today.
+
+For general purpose programming, the concept of a garbage collector was able to solve
+this problem. A garbage collector finds areas of memory that are no longer referenced
+at some point in the program, and frees the memory. Different strategies exist, such
+as reference counting, stop and copy, and mark and sweep strategies. Usually, the
+garbage collector is required to run as a separate process, adding performance
+overhead. Some strategies of garbage collection allow the garbage collector to run
+concurrent to the program, but fragment the memory. Other strategies avoid memory
+fragmentation, but require the running program to be paused so the memory can be
+copied over in a non-fragmented fashion. In any case, garbage collection results
+in the overhead of another process, as well as sometimes non-determinism in the layout
+of memory, both of which are extremely sub-optimal for high performance systems code.
+
+Work has been done to improve manually memory managed languages like C in terms of
+safety, by strenghthening the typesystem itself, and attacking the semantics of the
+language. Cyclone, a Cornell lab project, developed a dialect of C that works to
+ensure memory safety at compile time. Among the features included were statically
+checked lifetimes of pointer variables, and restrictions on types of pointers which
+work to ensure safety with regards to multi-aliasing (add citation). Similarly, the
+concept of ownership types was conceived as a software design principle, particularly
+in research on concurrent programming, where an object governs an area of memory,
+and administers any modifications to it (add citations). In the modern day,
+many of these features were materialized in the Rust programming language, a popular
+systems-level programming language that is making the case for the assistance of
+borrow checking and ownership for high performance code.
+
+In this paper, we implement borrow checking and ownership on a small extension of the
+simply typed lambda calculus. The paper is organized as follows.
 
 \end{document}
