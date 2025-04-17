@@ -5,6 +5,7 @@
 \usepackage{enumitem}
 \usepackage{geometry}
 \usepackage{bussproofs}
+\usepackage{listings}
 
 \newgeometry{vmargin={18mm}, hmargin={20mm}}
 
@@ -73,6 +74,117 @@ systems-level programming language that is making the case for the assistance of
 borrow checking and ownership for high performance code.
 
 In this paper, we implement borrow checking and ownership on a small extension of the
-simply typed lambda calculus. The paper is organized as follows.
+simply typed lambda calculus. The paper is organized as follows. Section 2 provides an
+overview of the components of the borrow checking and ownership strategy. Section 3
+discusses our implementation of a borrow checker in \texttt{borrow-lambda}.
+
+\section{Overview}
+The borrow checking and ownership strategy can be divided into three separate components
+that work together - Ownership, Borrowing, and Lifetimes. This section will conceptually
+describe the three. As the Rust programming language is the most well known widespread
+implementation of these concepts, we will reference it for illustrative purposes.
+
+\subsection{Ownership}
+Rust implements ownership as described with three main rules (add citation).
+\begin{itemize}
+    \item Each value in Rust has an owner.
+    \item There can only be one owner at a time.
+    \item When the owner goes out of scope, the value will be dropped.
+\end{itemize}
+In reality, this is an instance of an \textit{affine type system} - an instance
+of a substructural type system based on substructural logic where the rule
+of contraction is not permitted. In code, this corresponds to the language's
+move semantics - if a value isn't given the ability to be copied, it is instead
+\textit{moved}. Ownership and scope of the value is transferred to the new binder.
+This allows the compiler to statically determine where the memory of the value
+should be freed, and where the value, as well as names tied to it, are allowed to
+be used, absolving this responsibility from the programmer.
+\begin{figure}[h]
+    \begin{lstlisting}
+        fn main() {
+            let nums = vec![1, 2, 3];
+
+            do_something_with_vec(nums);
+            do_something_with_vec(nums);  // error
+        }
+
+        fn do_something_with_vec(v: Vec<u32>) {}
+    \end{lstlisting}
+
+    \caption{Example Rust code illustrating move semantics}
+    \label{ms}
+\end{figure}
+Figure \ref{ms} illustrates an example. We create a vector of unsigned
+integers - an object whose type does not permit copying - and bind it to the
+variable \texttt{nums}. We say the variable \texttt{nums} \textit{owns} this
+vector and its associated memory. Up to this point, we should expect \texttt{nums}
+to go out of scope at the end of \texttt{main}, and the compiler would automatically
+free the memory at this time. However, we instead pass \texttt{nums} as a parameter
+into the function \texttt{do\_something\_with\_vec}. Then, as previously described,
+the vector gets \textit{moved} into \texttt{do\_something\_with\_vec}. The vector is
+no longer bound to the name \texttt{nums}, which causes the second call to
+\texttt{do\_something\_with\_vec} to fail. Additionally, as the new owner, the
+function call administers the scope of this vector as well. As such, the vector's
+memory gets freed at the end of the function call. At this point, all access points to this memory are unusable and trigger compile time errors, which is what we want.
+
+What if we did actually want to use the same vector twice inside of \texttt{main}?
+Currently, it is quite inconvenient that the vector gets detached from the \texttt{nums}
+variable after the first use of it. We may rewrite the code such that
+\texttt{do\_something\_with\_vec} returns the vector, passing ownership of it back
+to the caller, allowing us to re-bind the vector to the \texttt{nums} variable.
+That is one possible solution, but what we really want is to provide some sort
+of reference, rather than temporarily giving ownership and taking it back.
+Crucially, it eliminates one nice guarantee we can make, which is the state
+of the value before and after we lend it. It would be nice to know, at a type level,
+whether the value we lent was mutated before we received it back. This is made
+possible with borrowing, which we describe in the next subsection.
+
+\subsection{Borrowing}
+Borrowing is a form of restricted pointers that allows us to give access of a value
+in memory, without relinquishing ownership of the value. Access is given through
+references to the value. These references are set to be either immutable or mutable
+by the programmer, meaning that references may only provide a view on the data
+without providing permission to mutate the data. Enforcement is an easy check during
+compile time.
+
+The concept of mutable and immutable references is simple enough, but what makes them
+useful is the rules that determine when they are valid, and how they affect the
+access points of memory. Particularly, the following rules related to references
+are enforced at compile time.
+\begin{itemize}
+    \item At any given time, a value can have either one mutable reference pointing to it, or any amount of immutable references pointing to it, but not both.
+    \item The owner of a value cannot mutate or give up ownership of a value while any references to the value are in scope.
+\end{itemize}
+Again, both easy checks at compile time. It is easily seen that these two restrictions
+ensure two important conditions, that is, only one object is able to mutate a value
+at a time, and that values will not be mutated or freed while being read from. In
+other words, this eliminates the problem of mutable aliasing.
+
+\subsection{Lifetimes}
+It is important to know how long a value is valid for, before its associated memory
+is freed or repurposed. Being able to check this at compile time is a large component
+of creating a memory safe language. The aformentioned Cyclone first experimented
+with this by adding regions to C, and it is the basis of Rust's lifetimes feature.
+A potential, and extremely common error, is that we may have a pointer to some value
+that we continue to use even after the value's associated memory gets freed - a dangling pointer.
+
+With the groundwork of ownership and borrowing laid out, the solution to this is
+simple - when we borrow a value, we must ensure that the value's associated memory
+does not get freed while a reference to it is still in scope. Or rather, we should
+not allow a reference to be created if its scope exceeds the window for which
+the value's memory remains intact. We formalize this with lifetimes.
+
+Generally, the \textit{lifetime} of a value, or the window in which its memory
+can be used before it is freed, is taken from the scope of its owner. These
+lifetimes are embedded into the typesystem as any references are additionally
+tagged with the lifetime of the value it is pointing to. Then, these references
+are checked with a subtyping relation, where a reference with a larger scope
+is a subtype of a reference with a smaller scope. This allows us to check that
+all borrows, or references, go out of scope before the value that they are borrowing
+is freed.
+
+\texttt{TODO: maybe add example code, explanation for functions polymorphic over lifetimes}
+
+\section{Implementation}
 
 \end{document}
