@@ -1,8 +1,6 @@
 # Trivially copyable types
 ```ocaml
-let x = natvec_make(0, succ 0, succ (succ 0)) in 
-let elem = natvec_get_mut(&mut x, succ 0) in 
-natvec_push(&mut x, 0)
+let x = 0 in let y = x in let z = x in z
 ```
 
 # Move semantics

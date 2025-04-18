@@ -6,10 +6,6 @@ authors:
     - Taran Dwivedula
 theme:
     name: catppuccin-mocha
-    # typst:
-    #     colors:
-    #         background: "ff0000"
-
 ---
 
 Consider the following C++ code
@@ -455,12 +451,9 @@ let d = &mut y in (* we can borrow y as mutable here, but not x*)
 
 <!-- pause -->
 
-&nbsp;
-
 4. **Checks validity of references** (can't return an escaping reference out of a let/in or lambda)
     - Uses the lifetime information from the typechecking step.
-    - Every scope has an index associated with it, 
-      just ensure the reference returned out has a larger lifetime (smaller index) than the scope
+    - Every scope has an index associated with it, just ensure the reference returned out has a larger lifetime (smaller index) than the scope
 
 
 <!-- end_slide -->
@@ -510,6 +503,8 @@ Conclusion and further improvements
 3. Captured borrows in closures
 
 4. Product types for more interesting ownership semantics
+
+<!-- pause -->
 
 ## In the literature
 
