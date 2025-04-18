@@ -6,6 +6,7 @@
 \usepackage{geometry}
 \usepackage{bussproofs}
 \usepackage{listings}
+\usepackage{simplebnf}
 
 \newgeometry{vmargin={18mm}, hmargin={20mm}}
 
@@ -77,6 +78,10 @@ In this paper, we implement borrow checking and ownership on a small extension o
 simply typed lambda calculus. The paper is organized as follows. Section 2 provides an
 overview of the components of the borrow checking and ownership strategy. Section 3
 discusses our implementation of a borrow checker in \texttt{borrow-lambda}.
+Section 4 describes some of the main challenges we faced when developing this
+implementation, and our solutions to them. Section 5 concludes the discussion
+of our implementation and discusses potential further improvements. Section 6
+gives an overview of related work in the literature.
 
 \section{Overview}
 The borrow checking and ownership strategy can be divided into three separate components
@@ -186,5 +191,143 @@ is freed.
 \texttt{TODO: maybe add example code, explanation for functions polymorphic over lifetimes}
 
 \section{Implementation}
+Our implementation consists of a small extension to the simply-typed lambda calculus,
+with constructs that are both necessary and illustrative to borrow checking and ownership,
+as well as the typing rules that facilitate borrow checking and ownership. The
+implementation is written in OCaml, with each of the constructs encoded as
+OCaml types. The main relevant component is the typechecker, which runs in two
+phases that will be described in this section. Additionally, we have included a
+parser which collects source code into terms represented as nodes in an abstract syntax tree, and an evaluator in order to develop a fully functional REPL.
+
+\subsection{Syntax}
+Our syntax of terms is as follows.
+\begin{center}
+    \begin{bnf}
+        $t$ : \textsf{Term} ::=
+        | $x$ | $\lambda x\ldotp t$ | $t_1\ t_2$ | $\&x$ | $\&\text{mut}\ x$ | $*x$
+        | if $t_1$ then $t_2$ else $t_3$
+        | let $x = t_1$ in $t_2$
+        | $x \coloneq t$
+        | $*x \coloneq t$
+        | true
+        | false
+        | unit
+        | 0
+        | pred $t$
+        | succ $t$
+        | iszero $t$
+        | natvec($t_1,t_2,\dots t_n$)
+        | get($t_1,t_2$)
+        | getmut($t_1,t_2$)
+        | push($t_1,t_2$)
+        | pop($t_1$) 
+    \end{bnf}
+\end{center}
+In addition to standard nats and bools and some simple operations for them, we add
+mutable and immutable references, the dereference operator, assignment and
+dereference-assignment, as well as a vector of nats for a more complex
+(non-copyable) data structure. We add terms representing operations that
+create a a vector given a list of terms, get a reference (mutable or immutable)
+of an element of a vector given a reference to the vector and an index, a similar
+method for pushing an element to a vector, and a method for popping an element
+(and returning the actual element as opposed to just a reference of it). Note that
+in this implementation, all variables are mutable.
+
+For the syntax of types, we first introduce a couple of constructs that will make
+them up.
+\begin{center}
+    \begin{bnf}
+        $\kappa$ : \textsf{Lifetime} ::= $\alpha$
+    \end{bnf}
+
+    \begin{bnf}
+        $\mu$ : \textsf{Mod} ::= mut | shr
+    \end{bnf}
+\end{center}
+Lifetimes are represented by numeric values, corresponding to their scope depth.
+We can make this definition, as each binding site introduces a new scope. The
+subtyping relation works by then considering a reference with a larger lifetime variable a subtype
+of a reference with a smaller lifetime variable. The mod corresponds to the type
+of reference (mutable or shared, i.e. immutable). The types of references will be
+annotated with both of these constructs, in addition to a type.
+
+We distinguish types that aren't themselves references as a subset of all types.
+This helps with reasoning about typing rules in certain cases where
+checking rules differ slightly based on this.
+\begin{center}
+    \begin{bnf}
+        $T_*$ : \textsf{Non-Reference Types} ::=
+        | Nat | Bool | Unit | $T_1\rightarrow T_2$ | NatVec
+    \end{bnf}
+    
+    \begin{bnf}
+        $T$ : \textsf{Types} ::=
+        | $\&^\kappa_\mu T$ | $T_*$
+    \end{bnf}
+\end{center}
+
+Lastly, when relevant, our typing rules make use of the following named set,
+denoting types that are copyable.
+$$\text{Copy}=\{\text{Nat}, \text{Bool}, \text{Unit},\&^\kappa_{\text{shr}} T\}$$
+
+\subsection{Typechecking Pass}
+We use bidirectional typechecking, as we felt that this was the simplest and
+most natural solution, especially for terms like the if clause whose type depends
+on that of the sub terms. As expected, the typechecker checks that terms are
+well-typed, and annotates the corresponding abstract syntax tree node with
+the determined type of the node, generating a new abstract syntax tree with nodes
+annotated with their types.
+
+This pass also does all the necessary work for lifetimes; assigning lifetimes
+to each of the variables and their respective borrows, checking the subtype
+relation of lifetimes, and handling instantiation of functions polymorphic over
+lifetimes.
+
+\texttt{TODO: add code examples and rules}
+
+\subsection{Borrow Checking Pass}
+The borrow checking pass is responsible for checking rules related to ownership
+and borrowing.
+Firstly, it checks the affine type property - that no value is used more than once.
+This is done by maintaining a context of variable usages which we call $\Delta$. Depending on if the type
+of the value is copyable, the variable gets added to this set. For a copyable variable,
+we don't need to track its usage for the purpose of validating move semantics.
+Additionally, we check that variables cannot be moved while being borrowed, by
+maintaining a context of the current borrows, which we call $B$. This is encoded
+in the following typing rule.
+$$\frac{\Gamma(x) = T \quad x \not\in \Delta \quad T \not\in \text{Copy} \quad x_{\mu} \not\in B}{\Gamma \mid B \mid \Delta \vdash x : T \mid \Delta, x}$$
+A couple of interesting special cases include the handling of if statements,
+and providing the ability to assign a value to a variable that has had a value
+moved out of it. In the former case, we will output the union of both $\Delta$
+contexts generated by traversing each branch of the if statement. In the latter case,
+we remove the current variable from the $\Delta$ context when assigning it a value
+if it is present, so that it can be used again, as seen in the following rule.
+$$\frac{\Gamma \mid \Delta \mid B \vdash t :  T \mid \Delta' \quad \Gamma(x) = T \quad x_{\mu} \not\in B}{\Gamma \mid \Delta \mid B \vdash x := t : \text{Unit} \mid \Delta' \setminus x}$$
+The borrow checking pass also uses the $B$ context to check that borrows adhere to
+the mutability rule, that is, mutable borrows can't exist while any other borrow
+to the same value is in scope, and immutable borrows can't exist while a mutable
+borrow to the same value is in scope.
+Finally, this pass also checks that references themselves are valid with respect
+to their lifetimes. This could potentially arise if an escaping reference is returned
+out of a let in or lambda statement. We make use of the lifetime annotations from
+the previous pass, and ensure that these references being returned out have
+larger lifetime than the scope they are being returned to. The following rule,
+though quite complex, encodes this.
+$$\frac{\Gamma \mid F \mid \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F,x \mid \Delta_{1} \mid B_{1} \vdash t_{2} : \&^{\beta}_{\mu} T_{2} \mid \Delta_{2} \mid B_{2} \quad \beta < |\Gamma|}{\Gamma \mid F \mid \Delta \mid B \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&^{\beta}_{\mu}\ T_{2} \mid \Delta_{2} \mid B}$$
+We introduce the fourth context here - $F$, which tracks variables bound in the current
+scope of the let in or lambda closure. Additionally, we use the semicolon as a shorthand
+to retrieve both a variable's type (on the left) and lifetime (on the right) from
+the $\Gamma$ (variables) context together. The rule states that
+when a reference is returned out with lifetime $\beta$, the program typechecks
+if the current scope of the closure, which is reflected by the lifetime variable
+of bound variable $x$, is smaller than the scope of the reference that is being
+returned out from. This means that the reference that is being returned out of
+the closure outlives the closure itself, which is what we want.
+
+\section{Challenges}
+
+\section{Conclusion and Future Work}
+
+\section{Related Work}
 
 \end{document}
