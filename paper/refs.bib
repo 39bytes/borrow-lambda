@@ -1,0 +1,84 @@
+@book{rustbook,
+    title = {The Rust Programming Language},
+    author = {Klabnik, Steve and Nichols, Carol},
+    year = {2018},
+    publisher = {No Starch Press},
+    address = {San Francisco, CA},
+    isbn = {978-1593278281},
+}
+
+@article{rustbelt1,
+    author = {Jung, Ralf and Jourdan, Jacques-Henri and Krebbers, Robbert and
+              Dreyer, Derek},
+    title = {RustBelt: securing the foundations of the Rust programming language
+             },
+    year = {2017},
+    issue_date = {January 2018},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {2},
+    number = {POPL},
+    url = {https://doi.org/10.1145/3158154},
+    doi = {10.1145/3158154},
+    abstract = {Rust is a new systems programming language that promises to
+                overcome the seemingly fundamental tradeoff between high-level
+                safety guarantees and low-level control over resource management.
+                Unfortunately, none of Rust's safety claims have been formally
+                proven, and there is good reason to question whether they
+                actually hold. Specifically, Rust employs a strong,
+                ownership-based type system, but then extends the expressive
+                power of this core type system through libraries that internally
+                use unsafe features. In this paper, we give the first formal (and
+                machine-checked) safety proof for a language representing a
+                realistic subset of Rust. Our proof is extensible in the sense
+                that, for each new Rust library that uses unsafe features, we can
+                say what verification condition it must satisfy in order for it
+                to be deemed a safe extension to the language. We have carried
+                out this verification for some of the most important libraries
+                that are used throughout the Rust ecosystem.},
+    journal = {Proc. ACM Program. Lang.},
+    month = dec,
+    articleno = {66},
+    numpages = {34},
+    keywords = {Rust, concurrency, logical relations, separation logic, type
+                systems},
+}
+
+
+@article{rustbelt2,
+    author = {Dang, Hoang-Hai and Jourdan, Jacques-Henri and Kaiser, Jan-Oliver
+              and Dreyer, Derek},
+    title = {RustBelt meets relaxed memory},
+    year = {2019},
+    issue_date = {January 2020},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {4},
+    number = {POPL},
+    url = {https://doi.org/10.1145/3371102},
+    doi = {10.1145/3371102},
+    abstract = {The Rust programming language supports safe systems programming
+                by means of a strong ownership-tracking type system. In their
+                prior work on RustBelt, Jung et al. began the task of setting
+                Rust’s safety claims on a more rigorous formal foundation.
+                Specifically, they used Iris, a Coq-based separation logic
+                framework, to build a machine-checked proof of semantic soundness
+                for a λ-calculus model of Rust, as well as for a number of
+                widely-used Rust libraries that internally employ unsafe language
+                features. However, they also made the significant simplifying
+                assumption that the language is sequentially consistent. In this
+                paper, we adapt RustBelt to account for the relaxed-memory
+                operations that concurrent Rust libraries actually use, in the
+                process uncovering a data race in the Arc library. We focus on
+                the most interesting technical problem: how to reason about
+                resource reclamation under relaxed memory, using a logical
+                construction we call synchronized ghost state.},
+    journal = {Proc. ACM Program. Lang.},
+    month = dec,
+    articleno = {34},
+    numpages = {29},
+    keywords = {semantic soundness, relaxed memory models, Rust, Iris},
+}
+
+  
+

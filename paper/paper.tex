@@ -8,7 +8,10 @@
 \usepackage{listings}
 \usepackage{simplebnf}
 
-\newgeometry{vmargin={18mm}, hmargin={20mm}}
+\newgeometry{vmargin={18mm}, hmargin={18mm}}
+
+\def\proofSkipAmount{\vskip 1em}
+\def\defaultHypSeparation{\hskip 0.5em}
 
 \newcommand{\D}{\mathcal{D}}
 \newcommand{\E}{\mathcal{E}}
@@ -90,7 +93,7 @@ describe the three. As the Rust programming language is the most well known wide
 implementation of these concepts, we will reference it for illustrative purposes.
 
 \subsection{Ownership}
-Rust implements ownership as described with three main rules (add citation).
+Rust implements ownership as described with three main rules. \cite{rustbook}
 \begin{itemize}
     \item Each value in Rust has an owner.
     \item There can only be one owner at a time.
@@ -110,7 +113,7 @@ be used, absolving this responsibility from the programmer.
             let nums = vec![1, 2, 3];
 
             do_something_with_vec(nums);
-            do_something_with_vec(nums);  // error
+            do_something_with_vec(nums);  // error: use of moved value
         }
 
         fn do_something_with_vec(v: Vec<u32>) {}
@@ -197,7 +200,9 @@ as well as the typing rules that facilitate borrow checking and ownership. The
 implementation is written in OCaml, with each of the constructs encoded as
 OCaml types. The main relevant component is the typechecker, which runs in two
 phases that will be described in this section. Additionally, we have included a
-parser which collects source code into terms represented as nodes in an abstract syntax tree, and an evaluator in order to develop a fully functional REPL.
+parser which collects source code into terms represented as nodes in an abstract syntax tree, 
+and an evaluator in order to develop a fully functional REPL. The evaluator follows a simple
+call by value semantics.
 
 \subsection{Syntax}
 Our syntax of terms is as follows.
@@ -223,13 +228,14 @@ Our syntax of terms is as follows.
         | pop($t_1$) 
     \end{bnf}
 \end{center}
-In addition to standard nats and bools and some simple operations for them, we add
+In addition to standard natural numbers and booleanss and some simple operations for them, we add
 mutable and immutable references, the dereference operator, assignment and
 dereference-assignment, as well as a vector of nats for a more complex
-(non-copyable) data structure. We add terms representing operations that
-create a a vector given a list of terms, get a reference (mutable or immutable)
-of an element of a vector given a reference to the vector and an index, a similar
-method for pushing an element to a vector, and a method for popping an element
+(non-copyable) data structure. 
+
+We add terms representing operations that create a vector given a list of terms, 
+get a reference (mutable or immutable) of an element of a vector given a reference to the vector and an index, 
+a similar method for pushing an element to a vector, and a method for popping an element
 (and returning the actual element as opposed to just a reference of it). Note that
 in this implementation, all variables are mutable.
 
@@ -249,7 +255,9 @@ We can make this definition, as each binding site introduces a new scope. The
 subtyping relation works by then considering a reference with a larger lifetime variable a subtype
 of a reference with a smaller lifetime variable. The mod corresponds to the type
 of reference (mutable or shared, i.e. immutable). The types of references will be
-annotated with both of these constructs, in addition to a type.
+annotated with both of these constructs, in addition to a type and the variable that they borrow.
+Functions can be polymorphic over lifetimes, as denoted by the $\forall \alpha.$ quantifier. This is required for any functions
+that have a reference type as a parameter, since the concrete lifetime is not important (or even knowable).
 
 We distinguish types that aren't themselves references as a subset of all types.
 This helps with reasoning about typing rules in certain cases where
@@ -262,7 +270,7 @@ checking rules differ slightly based on this.
     
     \begin{bnf}
         $T$ : \textsf{Types} ::=
-        | $\&^\kappa_\mu T$ | $T_*$
+        | ${}_{x}\&^\kappa_\mu T$ | $T_*$
     \end{bnf}
 \end{center}
 
@@ -286,48 +294,272 @@ lifetimes.
 \texttt{TODO: add code examples and rules}
 
 \subsection{Borrow Checking Pass}
+\begin{figure}
+
+\begin{center}
+
+\begin{prooftree}
+\AxiomC{$\Gamma(x) = T$}
+\AxiomC{$x \not\in \Delta$}
+\AxiomC{$T \not\in \text{Copy}$}
+\AxiomC{$x_{\mu} \not\in B$}
+\RightLabel{(T-Var)}
+\QuaternaryInfC{$\Gamma \mid B \mid \Delta \vdash x : T \mid \Delta, x$}
+\DisplayProof
+\;
+% T-VarCopy
+\AxiomC{$\Gamma(x) = T$}
+\AxiomC{$T \in \text{Copy}$}
+\RightLabel{(T-VarCopy)}
+\BinaryInfC{$\Gamma \mid \Delta \vdash x : T\mid \Delta$}
+\end{prooftree}
+\end{center}
+
+\begin{center}
+\begin{prooftree}
+\AxiomC{$\Gamma \vdash t : T_{1}$}
+\AxiomC{$T_{1} <: T_{2}$}
+\RightLabel{(T-Subtype)}
+\BinaryInfC{$\Gamma \vdash t: T_{2}$}
+\end{prooftree}
+\end{center}
+
+\begin{center}
+\begin{prooftree}
+% T-LftSubtype
+\AxiomC{$\alpha \leq \beta$}
+\RightLabel{(T-LftSubtype)}
+\UnaryInfC{$\Gamma \vdash {}_{x}\&^{\alpha}_{\mu}\ T <: {}_{y}\&^{\beta}_{\mu}\ T$}
+\DisplayProof
+\;
+% T-MutShrSubtype
+\AxiomC{$\alpha \leq \beta$}
+\RightLabel{(T-MutShrSubtype)}
+\UnaryInfC{$\Gamma \vdash {}_{x}\&^{\alpha}_{\text{mut}}\ T <: {}_{y}\&^{\beta}_{\text{shr}}\ T$}
+\end{prooftree}
+\end{center}
+
+\begin{center}
+% T-BorrowShr
+\begin{prooftree}
+\AxiomC{$\Gamma(x) = T; \alpha$}
+\AxiomC{$x \not\in \Delta$}
+\AxiomC{$x \in F$}
+\AxiomC{$x_{\text{mut}} \not\in B$}
+\RightLabel{(T-BorrowShr)}
+\QuaternaryInfC{$\Gamma \mid F \mid B \mid \Delta \vdash \&x : {}_{x}\&^{\alpha}_{\text{shr}}\ T \mid \Delta \mid B, x_{\text{shr}}$}
+\end{prooftree}
+
+\begin{prooftree}
+% T-BorrowMut
+\AxiomC{$\Gamma(x) =T; \alpha$}
+\AxiomC{$x \not\in \Delta$}
+\AxiomC{$x \in F$}
+\AxiomC{$x_{\mu} \not\in B$}
+\RightLabel{(T-BorrowMut)}
+\QuaternaryInfC{$\Gamma \mid F \mid B \mid \Delta \vdash \&\text{mut }x : {}_{x}\&^{\alpha}_{\text{mut}}\ T \mid \Delta \mid B, x_{\text{mut}}$}
+\end{prooftree}
+
+% T-Deref
+\begin{prooftree}
+\AxiomC{$\Gamma \mid F \mid \Delta \vdash x : {}_{y}\&^{\alpha}_{\mu}\ T \mid \Delta'$}
+\AxiomC{$T \in \text{Copy}$}
+\RightLabel{(T-Deref)}
+\BinaryInfC{$\Gamma \mid F \mid  \Delta \vdash\ ^{*}x : T  \mid \Delta'$}
+\end{prooftree}
+\end{center}
+
+
+% T-If
+\begin{prooftree}
+\AxiomC{$\Gamma \mid \Delta \mid B \vdash t_{1}: \text{Bool} \mid \Delta_{1} \mid B_1$}
+\AxiomC{$\Gamma \mid \Delta_{1} \mid B_1 \vdash t_{2} : T \mid\Delta_{2}$}
+\AxiomC{$\Gamma \mid \Delta_{1} \mid B_1 \vdash t_{3} : T \mid \Delta_{3}$}
+\RightLabel{(T-If)}
+\TrinaryInfC{$\Gamma \mid \Delta \mid B \vdash \text{if }t_{1}\text{ then }t_{2}\text{ else }t_{3} : T \mid \Delta_{2} \cup \Delta_{3} \mid B$}
+\end{prooftree}
+
+% T-Assign
+\begin{prooftree}
+\AxiomC{$\Gamma \mid \Delta \mid B \vdash t :  T \mid \Delta'$}
+\AxiomC{$\Gamma(x) = T$}
+\AxiomC{$x_{\mu} \not\in B$}
+\RightLabel{(T-Assign)}
+\TrinaryInfC{$\Gamma \mid \Delta \mid B \vdash x := t : \text{Unit} \mid \Delta' \setminus x$}
+\end{prooftree}
+
+% T-LetRef
+\begin{prooftree}
+\AxiomC{$\Gamma \mid F \mid \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1}$}
+\AxiomC{$\Gamma,x : T_{1} ; |\Gamma| \mid F,x \mid \Delta_{1} \mid B_{1} \vdash t_{2} : {}_{x}\&^{\alpha}_{\mu} T_{2} \mid \Delta_{2} \mid B_{2}$}
+\AxiomC{$\alpha < |\Gamma|$}
+\RightLabel{(T-LetRef)}
+\TrinaryInfC{$\Gamma \mid F \mid \Delta \mid B \vdash \text{let }x = t_{1}\text{ in }t_{2} : {}_{x}\&^{\alpha}_{\mu}\ T_{2} \mid \Delta_{2} \mid B, x_{\mu}$}
+\end{prooftree}
+
+\begin{prooftree}
+\AxiomC{$\Gamma \mid F \mid \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1}$}
+\AxiomC{$\Gamma,x : T_{1} ; |\Gamma| \mid F, x\mid \Delta_{1} \mid B_1 \vdash t_{2} : T_{*} \mid \Delta_{2} \mid B_{2}$}
+\RightLabel{(T-Let)}
+\BinaryInfC{$\Gamma \mid F \mid \Delta \vdash \text{let }x = t_{1}\text{ in }t_{2} : T_{*} \mid \Delta_{2} \mid B$}
+\end{prooftree}
+
+\begin{prooftree}
+\AxiomC{$\Gamma \mid \Delta \vdash t_{1} : \text{Nat} \mid \Delta_{1}$}
+\AxiomC{$\Gamma \mid \Delta_{1} \vdash t_{2} : \text{Nat} \mid \Delta_{2}$}
+\AxiomC{$\dots$}
+\AxiomC{$\Gamma \mid \Delta_{k-1} \vdash t_{k} : \text{Nat} \mid \Delta_{k}$}
+\RightLabel{(T-NatVec)}
+\QuaternaryInfC{$\Gamma \mid \Delta \vdash \text{natvec}(t_{1}, t_{2},\dots t_{k}) : \text{NatVec} \mid \Delta_{k}$}
+\end{prooftree}
+
+% Get rule
+\begin{prooftree}
+\AxiomC{$\Gamma \mid \Delta \mid B \vdash t_{1} : {}_{x}\&^{\alpha}_{\mu}\ \text{NatVec} \mid \Delta_{1} \mid B_1$}
+\AxiomC{$\Gamma \mid \Delta_{1} \mid B_1 \vdash t_{2}:\text{Nat} \mid \Delta_{2} \mid B_2$}
+\RightLabel{(T-NatVecGet)}
+\BinaryInfC{$\Gamma \mid \Delta \mid B_2 \vdash \text{get}(t_{1}, t_{2}) : {}_{x}\&^{\alpha}_{\text{shr}}\ \text{Nat} \mid \Delta_{2} \mid B, x_{\text{shr}}$}
+\end{prooftree}
+
+% GetMut rule
+\begin{prooftree}
+\AxiomC{$\Gamma \mid \Delta \mid B \vdash t_{1} : {}_{x}\&^{\alpha}_{\text{mut}}\ \text{NatVec} \mid \Delta_{1} \mid B_1$}
+\AxiomC{$\Gamma \mid \Delta_{1} \mid B_1 \vdash t_{2}:\text{Nat} \mid \Delta_{2} \mid B_2$}
+\RightLabel{(T-NatVecGetMut)}
+\BinaryInfC{$\Gamma \mid \Delta \vdash \text{getmut}(t_{1}, t_{2}) : {}_{x}\&^{\alpha}_{\text{mut}}\ \text{Nat} \mid \Delta_{2} \mid B, x_{\text{mut}}$}
+\end{prooftree}
+
+    \caption{Selected typing rules for our language.}
+    \label{borrowrules}
+\end{figure}
+
 The borrow checking pass is responsible for checking rules related to ownership
-and borrowing.
-Firstly, it checks the affine type property - that no value is used more than once.
+and borrowing. Most typing rules of interest are shown in Figure \ref{borrowrules}. Note that
+contexts are omitted from a rule if they are not used and don't change in the derivation.
+Rule T-Var checks the affine type property - that no value is used more than once.
 This is done by maintaining a context of variable usages which we call $\Delta$. Depending on if the type
-of the value is copyable, the variable gets added to this set. For a copyable variable,
-we don't need to track its usage for the purpose of validating move semantics.
+of the value is copyable, the variable gets added to this set (T-Var). For a copyable variable,
+we don't need to track its usage for the purpose of validating move semantics (T-VarCopy).
+
 Additionally, we check that variables cannot be moved while being borrowed, by
-maintaining a context of the current borrows, which we call $B$. This is encoded
-in the following typing rule.
-$$\frac{\Gamma(x) = T \quad x \not\in \Delta \quad T \not\in \text{Copy} \quad x_{\mu} \not\in B}{\Gamma \mid B \mid \Delta \vdash x : T \mid \Delta, x}$$
+maintaining a context of the current borrows, which we call $B$. $B$ is simply a list of variable/modifier
+pairs, which lets us determine if a variable is borrowed immutably or mutably.
+
 A couple of interesting special cases include the handling of if statements,
 and providing the ability to assign a value to a variable that has had a value
-moved out of it. In the former case, we will output the union of both $\Delta$
-contexts generated by traversing each branch of the if statement. In the latter case,
+moved out of it. In the former case (T-If), we will output the union of both $\Delta$
+contexts generated by traversing each branch of the if statement. In the latter case (T-Assign),
 we remove the current variable from the $\Delta$ context when assigning it a value
 if it is present, so that it can be used again, as seen in the following rule.
-$$\frac{\Gamma \mid \Delta \mid B \vdash t :  T \mid \Delta' \quad \Gamma(x) = T \quad x_{\mu} \not\in B}{\Gamma \mid \Delta \mid B \vdash x := t : \text{Unit} \mid \Delta' \setminus x}$$
+
 The borrow checking pass also uses the $B$ context to check that borrows adhere to
 the mutability rule, that is, mutable borrows can't exist while any other borrow
-to the same value is in scope, and immutable borrows can't exist while a mutable
-borrow to the same value is in scope.
+to the same value is in scope (T-BorrowMut), and immutable borrows can't exist while a mutable
+borrow to the same value is in scope (T-BorrowShr).
+
 Finally, this pass also checks that references themselves are valid with respect
 to their lifetimes. This could potentially arise if an escaping reference is returned
 out of a let in or lambda statement. We make use of the lifetime annotations from
 the previous pass, and ensure that these references being returned out have
-larger lifetime than the scope they are being returned to. The following rule,
+larger lifetime than the scope they are being returned to. The rule T-LetRef,
 though quite complex, encodes this.
-$$\frac{\Gamma \mid F \mid \Delta \mid B \vdash t_{1} : T_{1} \mid \Delta_{1} \mid B_{1} \quad \Gamma,x : T_{1} ; |\Gamma| \mid F,x \mid \Delta_{1} \mid B_{1} \vdash t_{2} : \&^{\beta}_{\mu} T_{2} \mid \Delta_{2} \mid B_{2} \quad \beta < |\Gamma|}{\Gamma \mid F \mid \Delta \mid B \vdash \text{let $x = t_{1}$ in $t_{2}$} : \&^{\beta}_{\mu}\ T_{2} \mid \Delta_{2} \mid B}$$
+
 We introduce the fourth context here - $F$, which tracks variables bound in the current
-scope of the let in or lambda closure. Additionally, we use the semicolon as a shorthand
-to retrieve both a variable's type (on the left) and lifetime (on the right) from
+scope of the current lambda term. We do not allow captured borrows in our language, since allowing captured borrows 
+would further complicate the type system as closures would need lifetimes attached to them.
+
+Additionally, we use the semicolon as a shorthand to denote both a variable's type (on the left) and lifetime (on the right) in
 the $\Gamma$ (variables) context together. The rule states that
-when a reference is returned out with lifetime $\beta$, the program typechecks
+when a reference is returned out with lifetime $\alpha$, the program typechecks
 if the current scope of the closure, which is reflected by the lifetime variable
 of bound variable $x$, is smaller than the scope of the reference that is being
 returned out from. This means that the reference that is being returned out of
-the closure outlives the closure itself, which is what we want.
+the closure outlives the closure itself, which is what we want. Additionally, when checking
+the inner term $t_2$, we add the bound variable $x$ with type $T_1$ and assign it a lifetime index
+corresponding to the current scope depth, which is equivalent to the size of the set $\Gamma$.
 
 \section{Challenges}
 
+\paragraph{Ending borrows.}
+The most difficult aspect of this type system is knowing when to end borrows. Consider the following code example:
+\begin{lstlisting}[language=caml]
+    let x = 0 in 
+    let y = 0 in 
+    let z = (let a = &y in let b = &x in b) in 
+    let d = &mut y in 
+    ...
+\end{lstlisting}
+In the expression that is bound to $\mathtt{z}$, we borrow both $\mathtt{x}$ and $\mathtt{y}$ immutably.
+However, the borrow of $\mathtt{x}$ ends as $\mathtt{b}$ is only bound in the inner scope, 
+but the borrow of $\mathtt{x}$ continues since $\mathtt{b}$ is returned as the result of the expression.
+As such, $\mathtt{y}$ is able to be mutably borrowed again in the outer scope. However, we would not be 
+able to do the same with $\mathtt{x}$ as it is immutably borrowed and bound to $\mathtt{z}$.
+
+To know which borrows to keep alive, we decided to tag each reference with the variable that it borrows.
+Then, in the rule T-LetRef we simply include the returned reference's variable in the borrow context $B$.
+This is also useful for "partial borrows", like with NatVec, as we can mark the borrows of individual
+elements as borrowing the entire container to prevent aliasing. This can be seen in the rules T-NatVecGet
+and T-NatVecGetMut.
+\begin{lstlisting}[language=caml]
+    let x = natvec_make(0, succ 0, succ (succ 0)) in
+    let elem = natvec_get_mut(&mut x, succ 0) in
+    natvec_push(&mut x, 0) (* error: cannot mutably borrow 'x' *)
+\end{lstlisting}
+
+\paragraph{Shadowing.} Since many of the contexts store the names of variables,
+variables with the same name cause issues. However, forcing the programmer to 
+come up with unique names for every variable is extremely inconvenient. We resolve this issue
+by adding an additional pass after parsing that assigns every variable a unique ID which is used internally
+in the contexts. The original name is still used for error messages.
+
+
 \section{Conclusion and Future Work}
+The language we implemented captures the basic ideas of ownership and borrow checking like in Rust, however it is quite limited in scope. It is useful from a theoretical standpoint to formally understand the semantics of borrowing, but
+it is certainly not useful for practical programming. There are many areas in which we could make big improvements in terms of usability:
+
+\paragraph{Recursion.} The language as it stands currently is not even Turing complete as it lacks a looping construct.
+A simple way to implement this would be to add a Fix term to bind a function in itself. Alternatively, we could add recursive types so that the fixed-point combinator can be typed.
+
+\paragraph{Captured borrows.} We disallowed capturing by borrow in this language to simplify the implementation,
+however allowing captured borrows could be implemented by attaching a lifetime parameter to functions (taking the minimum lifetime of all captured borrows) and treating
+them similarly to references in the borrow checking rules.
+
+\paragraph{Reusable functions.} Lambda abstractions in our language are not Copy so they can only be called once. This is because lambdas 
+can capture variables by move, and those values are subject to the affine typing rules so they should only be able to be used once.
+However, this is overly restrictive since functions that do not capture anything should be able to be used multiple times. To implement functions that can be called multiple times,
+we could introduce a notion of "top-level functions" which cannot capture anything by definition and could be added as an exception to the affine typing rules.
+
+A more general approach would be to check whether or not a lambda abstraction captures any variables and in turn assign it a different type
+depending on whether or not it can be called multiple times. This is essentially what Rust does with its $\mathtt{FnOnce}$,
+$\mathtt{Fn}$, and $\mathtt{FnMut}$ traits.
+
+\paragraph{Product types.} We introduced the NatVec type to have some form of "container" type which is not
+trivially copyable to illustrate more interesting cases of ownership and borrowing semantics. However, its use is limited as it
+is not general purpose. The type system becomes much richer and more powerful with general purpose product types, but this adds
+significant complexity; types that hold references must be polymorphic over lifetimes, handling disjoint borrows of individual fields of a product type and 
+partial moves of individual fields, to name a few challenges.
+
 
 \section{Related Work}
+
+Substructural and uniqueness type systems for safer memory management have been
+a popular research topic in the literature. As stated before, the idea of region-based
+memory management has its origins with the Cyclone language.
+
+Regarding Rust specifically, the RustBelt project (2016-2021) aimed to
+formalize the foundations of the language. Jung et al. (2018) \cite{rustbelt1} model the Rust language
+with a lambda calculus they call $\lambda_{\text{Rust}}$, which is quite close to the Middle Intermediate Representation (MIR)
+used by the actual Rust compiler. Their model includes a rich type system that matches many of Rust's features
+(general sum types, product types, recursive types, recursion, concurrency). Their model of lifetimes differs from ours as
+they use "lifetime tokens", which is less restrictive as it allows for reborrowing and splitting borrows on product types.
+They encode the semantics of $\lambda_{\text{Rust}}$ in the Coq proof assistant and prove soundness of a few types in Rust's standard library,
+such as $\mathtt{Arc}$ and $\mathtt{Mutex}$. 
+
+Dang et al. (2019) \cite{rustbelt2} extend this work with a memory model that includes atomics and memory ordering which provides a more accurate model
+of concurrency.
+
+
+\bibliographystyle{plain}
+\bibliography{refs}
 
 \end{document}

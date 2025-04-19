@@ -1,2 +1,11 @@
 _build/
 _opam/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.pdf
+*.log
+*.synctex.gz
+
