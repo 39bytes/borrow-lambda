@@ -226,9 +226,10 @@ Our syntax of terms is as follows.
         | getmut($t_1,t_2$)
         | push($t_1,t_2$)
         | pop($t_1$) 
+        | $t\ \colon T$
     \end{bnf}
 \end{center}
-In addition to standard natural numbers and booleanss and some simple operations for them, we add
+In addition to standard natural numbers and booleans and some simple operations for them, we add
 mutable and immutable references, the dereference operator, assignment and
 dereference-assignment, as well as a vector of nats for a more complex
 (non-copyable) data structure. 
@@ -236,8 +237,8 @@ dereference-assignment, as well as a vector of nats for a more complex
 We add terms representing operations that create a vector given a list of terms, 
 get a reference (mutable or immutable) of an element of a vector given a reference to the vector and an index, 
 a similar method for pushing an element to a vector, and a method for popping an element
-(and returning the actual element as opposed to just a reference of it). Note that
-in this implementation, all variables are mutable.
+(and returning the actual element as opposed to just a reference of it). Any term can also be given a type annotation.
+Note that in this implementation, all variables are mutable.
 
 For the syntax of types, we first introduce a couple of constructs that will make
 them up.
@@ -276,7 +277,7 @@ checking rules differ slightly based on this.
 
 Lastly, when relevant, our typing rules make use of the following named set,
 denoting types that are copyable.
-$$\text{Copy}=\{\text{Nat}, \text{Bool}, \text{Unit},\&^\kappa_{\text{shr}} T\}$$
+$$\text{Copy}=\{\text{Nat}, \text{Bool}, \text{Unit},{}_{x}\&^\kappa_{\text{shr}} T\}$$
 
 \subsection{Typechecking Pass}
 We use bidirectional typechecking, as we felt that this was the simplest and
@@ -287,11 +288,35 @@ the determined type of the node, generating a new abstract syntax tree with node
 annotated with their types.
 
 This pass also does all the necessary work for lifetimes; assigning lifetimes
-to each of the variables and their respective borrows, checking the subtype
-relation of lifetimes, and handling instantiation of functions polymorphic over
-lifetimes.
+to each of the variables and their respective borrows (see Figure \ref{varlifetimes}), 
+checking the subtype relations for references (T-LftSubtype and T-MutShrSubtype, see Figure \ref{borrowrules}), and handling instantiation of functions polymorphic over
+lifetimes (Figure \ref{lifetimepoly}). 
 
-\texttt{TODO: add code examples and rules}
+\begin{figure}[h]
+    \begin{lstlisting}[language=caml]
+        let a = 0 in        (* a has lifetime '0 *)
+        let b = succ 0 in   (* b has lifetime '1 *)
+        let c = (\d. d) in  (* c has lifetime '2 *)
+        let d = &b in       (* b has type &'1 nat *)
+        let d = &mut a in   (* b has type &'0 mut nat *)
+        ...
+    \end{lstlisting}
+
+    \caption{Example code illustrating lifetimes of variables}
+    \label{varlifetimes}
+\end{figure}
+
+\begin{figure}[h]
+    \begin{lstlisting}[language=caml]
+        let y = (\x. x) : &'a nat -> &'a nat in 
+        let k = succ (succ 0) in (* k has lifetime '1 *)
+        let z = y &k in          (* z has type &'1 nat*)
+        ...
+    \end{lstlisting}
+
+    \caption{Example code illustrating lifetime polymorphic instantiation}
+    \label{lifetimepoly}
+\end{figure}
 
 \subsection{Borrow Checking Pass}
 \begin{figure}
