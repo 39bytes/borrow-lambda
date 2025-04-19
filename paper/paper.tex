@@ -297,8 +297,8 @@ lifetimes (Figure \ref{lifetimepoly}).
         let a = 0 in        (* a has lifetime '0 *)
         let b = succ 0 in   (* b has lifetime '1 *)
         let c = (\d. d) in  (* c has lifetime '2 *)
-        let d = &b in       (* b has type &'1 nat *)
-        let d = &mut a in   (* b has type &'0 mut nat *)
+        let d = &b in       (* d has type &'1 nat *)
+        let e = &mut a in   (* e has type &'0 mut nat *)
         ...
     \end{lstlisting}
 
