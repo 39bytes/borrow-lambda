@@ -191,7 +191,34 @@ is a subtype of a reference with a smaller scope. This allows us to check that
 all borrows, or references, go out of scope before the value that they are borrowing
 is freed.
 
-\texttt{TODO: maybe add example code, explanation for functions polymorphic over lifetimes}
+Lastly, functions that accept references as input, and return references, need to
+ensure that these references have a scope that is larger than the function itself.
+However, the scope that these references have need not be fixed - they just need
+to be sufficiently large. As a result, functions are actually polymorphic over
+lifetime variables, provided that the instantiation lifetime variable meets
+the constraints we have discussed. Figure \ref{lfpolyex} shows an example.
+\begin{figure}[h]
+    \begin{lstlisting}
+        fn main() {
+            let n = 0;
+            let my_ref = borrower(&n);
+        }
+
+        fn borrower<'a>(r: &'a u32) -> &'a u32 {
+            let b = 0;
+            &b // error: variable 'b' does not live long enough 
+        }
+    \end{lstlisting}
+    \caption{Example of a function with a polymorphic lifetime variable}
+    \label{lfpolyex}
+\end{figure}
+The function \texttt{borrower} requires that the reference passed in, and the
+reference returned out, has a lifetime \texttt{'a}. When the function is called,
+this variable \texttt{'a} is instantiated to the lifetime of the reference that
+is passed in, that being \texttt{\&n}. Thus, the typechecker can determine that
+the implementation of the function is invalid, as the reference \texttt{\&b} is
+being returned out of the function, but has a lifetime smaller than the lifetime
+of \texttt{\&n}, which is what \texttt{'a} was instantiated to.
 
 \section{Implementation}
 Our implementation consists of a small extension to the simply-typed lambda calculus,
