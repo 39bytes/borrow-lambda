@@ -29,11 +29,11 @@
     Like the strategy of garbage collection implemented in several common general purpose programming languages, borrow checking eliminates the
     need for programmers to manually allocate and free the memory their program uses, which is the source of many human errors in programming.
     However, the need for high performance code makes garbage collection a sub-optimal solution, as garbage collection introduces performance
-    overheads, non-determinism, and potentially memory fragmentation. Borrow checking and ownership is an alternative that takes a different
-    approach - it relies on the strength of the programming language's typesystem. It is a set of rules that allows the compiler to
+    overhead, non-determinism, and potentially memory fragmentation. Borrow checking and ownership is an alternative that takes a different
+    approach - it relies on the strength of the programming language's type system. It is a set of rules that allows the compiler to
     automatically determine where to allocate and free memory, both eliminating the need of a garbage collector and the need for a programmer
     to manually allocate and free memory. In this paper, we discuss borrow checking as a solution to common memory errors, and provide
-    and implementation on a small extension of the simply-typed lambda calculus.
+    an implementation on a small extension of the simply-typed lambda calculus.
 \end{abstract}
 
 \section{Introduction}
@@ -47,7 +47,7 @@ memory safe code without mistakes, and just like assembly, mistakes would not re
 in errors - just undefined behaviour.
 
 Over time, we have seen that relying on programmers to be skilled enough to avoid
-making memory errors in their code is not feasible. When codebases become large scale,
+making memory errors in their code is not feasible. As codebases grow larger and larger,
 these errors become extremely hard to avoid. Computer viruses and exploits due to
 things like buffer overflows affect many people and are still present in a large
 amount of software today.
@@ -65,7 +65,7 @@ in the overhead of another process, as well as sometimes non-determinism in the 
 of memory, both of which are extremely sub-optimal for high performance systems code.
 
 Work has been done to improve manually memory managed languages like C in terms of
-safety, by strenghthening the typesystem itself, and attacking the semantics of the
+safety, by strengthening the typesystem itself, and attacking the semantics of the
 language. Cyclone, a Cornell lab project, developed a dialect of C that works to
 ensure memory safety at compile time. Among the features included were statically
 checked lifetimes of pointer variables, and restrictions on types of pointers which
@@ -215,15 +215,15 @@ the constraints we have discussed. Figure \ref{lfpolyex} shows an example.
 The function \texttt{borrower} requires that the reference passed in, and the
 reference returned out, has a lifetime \texttt{'a}. When the function is called,
 this variable \texttt{'a} is instantiated to the lifetime of the reference that
-is passed in, that being \texttt{\&n}. Thus, the typechecker can determine that
+is passed in, namely \texttt{\&n}. Thus, the typechecker can determine that
 the implementation of the function is invalid, as the reference \texttt{\&b} is
-being returned out of the function, but has a lifetime smaller than the lifetime
-of \texttt{\&n}, which is what \texttt{'a} was instantiated to.
+being returned out of the function, but has a lifetime smaller than \texttt{'a}.
+This is because any possible instantiation of \texttt{'a} must must be strictly larger than the scope of the function since
+it is tied to a parameter.
 
 \section{Implementation}
 Our implementation consists of a small extension to the simply-typed lambda calculus,
-with constructs that are both necessary and illustrative to borrow checking and ownership,
-as well as the typing rules that facilitate borrow checking and ownership. The
+with constructs that are both necessary and illustrative to borrow checking and ownership. The
 implementation is written in OCaml, with each of the constructs encoded as
 OCaml types. The main relevant component is the typechecker, which runs in two
 phases that will be described in this section. Additionally, we have included a
@@ -232,7 +232,18 @@ and an evaluator in order to develop a fully functional REPL. The evaluator foll
 call by value semantics.
 
 \subsection{Syntax}
-Our syntax of terms is as follows.
+In addition to standard natural numbers and booleans and some simple operations for them, we add
+mutable and immutable references, the dereference operator, assignment and
+dereference-assignment, as well as a vector of nats for a more complex
+(non-copyable) data structure. 
+
+We add terms representing operations that create a vector given a list of terms, 
+get a reference (mutable or immutable) of an element of a vector given a reference to the vector and an index, 
+a similar method for pushing an element to a vector, and a method for popping an element
+(and returning the actual element as opposed to just a reference of it). Any term can also be given a type annotation.
+Note that in this implementation, all variables are mutable.
+
+The syntax of terms is as follows:
 \begin{center}
     \begin{bnf}
         $t$ : \textsf{Term} ::=
@@ -256,16 +267,6 @@ Our syntax of terms is as follows.
         | $t\ \colon T$
     \end{bnf}
 \end{center}
-In addition to standard natural numbers and booleans and some simple operations for them, we add
-mutable and immutable references, the dereference operator, assignment and
-dereference-assignment, as well as a vector of nats for a more complex
-(non-copyable) data structure. 
-
-We add terms representing operations that create a vector given a list of terms, 
-get a reference (mutable or immutable) of an element of a vector given a reference to the vector and an index, 
-a similar method for pushing an element to a vector, and a method for popping an element
-(and returning the actual element as opposed to just a reference of it). Any term can also be given a type annotation.
-Note that in this implementation, all variables are mutable.
 
 For the syntax of types, we first introduce a couple of constructs that will make
 them up. This syntax is based on a paper by Jung et al. (2018) \cite{rustbelt1}.
@@ -280,8 +281,8 @@ them up. This syntax is based on a paper by Jung et al. (2018) \cite{rustbelt1}.
 \end{center}
 Lifetimes are represented by numeric values, corresponding to their scope depth.
 We can make this definition, as each binding site introduces a new scope. The
-subtyping relation works by then considering a reference with a larger lifetime variable a subtype
-of a reference with a smaller lifetime variable. The mod corresponds to the type
+subtyping relation works by then considering a reference with a larger lifetime (smaller scope depth) a subtype
+of a reference with a smaller lifetime (larger scope depth). The mod corresponds to the type
 of reference (mutable or shared, i.e. immutable). The types of references will be
 annotated with both of these constructs, in addition to a type and the variable that they borrow.
 Functions can be polymorphic over lifetimes, as denoted by the $\forall \alpha.$ quantifier. This is required for any functions
@@ -308,7 +309,7 @@ $$\text{Copy}=\{\text{Nat}, \text{Bool}, \text{Unit},{}_{x}\&^\kappa_{\text{shr}
 
 \subsection{Typechecking Pass}
 We use bidirectional typechecking, as we felt that this was the simplest and
-most natural solution, especially for terms like the if clause whose type depends
+most natural solution, especially for terms like conditionals whose type depends
 on that of the sub terms. As expected, the typechecker checks that terms are
 well-typed, and annotates the corresponding abstract syntax tree node with
 the determined type of the node, generating a new abstract syntax tree with nodes
@@ -323,7 +324,6 @@ lifetimes (Figure \ref{lifetimepoly}).
     \begin{lstlisting}[language=caml]
         let a = 0 in        (* a has lifetime '0 *)
         let b = succ 0 in   (* b has lifetime '1 *)
-        let c = (\d. d) in  (* c has lifetime '2 *)
         let d = &b in       (* d has type &'1 nat *)
         let e = &mut a in   (* e has type &'0 mut nat *)
         ...
@@ -346,6 +346,19 @@ lifetimes (Figure \ref{lifetimepoly}).
 \end{figure}
 
 \subsection{Borrow Checking Pass}
+
+\begin{figure}
+    \begin{center}
+        $\Gamma = \cdot \mid \Gamma, x : T ; \alpha$ \quad
+        $\Delta = \cdot \mid \Delta, x$ \quad
+        $F = \cdot \mid F, x$ \quad
+        $B = \cdot \mid B, x_{\mu}$
+        
+        \caption{Definitions of typing contexts.}
+        \label{contexts}
+    \end{center}
+\end{figure}
+
 \begin{figure}
 
 \begin{center}
@@ -489,8 +502,8 @@ The borrow checking pass is responsible for checking rules related to ownership
 and borrowing. Most typing rules of interest are shown in Figure \ref{borrowrules}. Note that
 contexts are omitted from a rule if they are not used and don't change in the derivation.
 Rule T-Var checks the affine type property - that no value is used more than once.
-This is done by maintaining a context of variable usages which we call $\Delta$. Depending on if the type
-of the value is copyable, the variable gets added to this set (T-Var). For a copyable variable,
+This is done by maintaining a context of variable usages which we call $\Delta$. If the value
+is not trivially copyable, the variable gets added to this set (T-Var). For copyable types,
 we don't need to track its usage for the purpose of validating move semantics (T-VarCopy).
 
 Additionally, we check that variables cannot be moved while being borrowed, by
@@ -523,10 +536,8 @@ would further complicate the type system as closures would need lifetimes attach
 Additionally, we use the semicolon as a shorthand to denote both a variable's type (on the left) and lifetime (on the right) in
 the $\Gamma$ (variables) context together. The rule states that
 when a reference is returned out with lifetime $\alpha$, the program typechecks
-if the current scope of the closure, which is reflected by the lifetime variable
-of bound variable $x$, is smaller than the scope of the reference that is being
-returned out from. This means that the reference that is being returned out of
-the closure outlives the closure itself, which is what we want. Additionally, when checking
+if the index $\alpha$ is strictly smaller than the current scope. This means that the reference that is being returned out of
+the scope outlives the scope itself, which is what we want. Additionally, when checking
 the inner term $t_2$, we add the bound variable $x$ with type $T_1$ and assign it a lifetime index
 corresponding to the current scope depth, which is equivalent to the size of the set $\Gamma$.
 
