@@ -5,7 +5,5 @@ _opam/
 *.blg
 *.fdb_latexmk
 *.fls
-*.pdf
 *.log
 *.synctex.gz
-
