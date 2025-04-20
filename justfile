@@ -9,3 +9,6 @@ test:
 
 utop:
     TM=$(mktemp) && dune ocaml top > "$TM" && cat init.ml >> "$TM" && utop -init "$TM"
+
+present:
+    presenterm --present paper/slides.md
